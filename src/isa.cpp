@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
+#include <string>
 
 namespace risc201 {
 
