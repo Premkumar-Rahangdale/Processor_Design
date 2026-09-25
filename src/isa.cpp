@@ -143,27 +143,54 @@ int parseRegister(const std::string& token)
 
 bool isImmediateInstruction(const std::string& mnemonic)
 {
-    const InstructionInfo* info = getInstruction(mnemonic);
+    static const std::unordered_set<std::string> instructions = {
+        "ADDI",
+        "ANDI",
+        "ORI",
+        "XORI",
+        "SLLI",
+        "SRLI",
+        "SRAI",
+        "SLTI",
+        "LUI"
+    };
 
-    if (!info)
-        return false;
-
-    return info->format == Format::I;
+    return instructions.count(toUpper(mnemonic)) > 0;
 }
 
 bool isMemoryInstruction(const std::string& mnemonic)
 {
-    return mnemonic == "LW" || mnemonic == "SW";
+    static const std::unordered_set<std::string> instructions = {
+        "LW",
+        "LB",
+        "LBU",
+        "SW",
+        "SB"
+    };
+
+    return instructions.count(toUpper(mnemonic)) > 0;
 }
 
 bool isBranchInstruction(const std::string& mnemonic)
 {
-    return mnemonic == "BEQ";
+    static const std::unordered_set<std::string> instructions = {
+        "BEQ",
+        "BNE",
+        "BLT",
+        "BGE"
+    };
+
+    return instructions.count(toUpper(mnemonic)) > 0;
 }
 
 bool isJumpInstruction(const std::string& mnemonic)
 {
-    return mnemonic == "JAL";
+    static const std::unordered_set<std::string> instructions = {
+        "JAL",
+        "JALR"
+    };
+
+    return instructions.count(toUpper(mnemonic)) > 0;
 }
 
 } // namespace risc201
