@@ -3,54 +3,88 @@
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace risc201 {
 
-static const std::unordered_map<std::string, InstructionInfo> instructionTable = {
-    {"ADD",  {"ADD",  0x01, Format::R}},
-    {"SUB",  {"SUB",  0x02, Format::R}},
-    {"AND",  {"AND",  0x03, Format::R}},
-    {"OR",   {"OR",   0x04, Format::R}},
-    {"XOR",  {"XOR",  0x05, Format::R}},
-    {"SLL",  {"SLL",  0x06, Format::R}},
-    {"SRL",  {"SRL",  0x07, Format::R}},
-    {"SRA",  {"SRA",  0x08, Format::R}},
-    {"SLT",  {"SLT",  0x09, Format::R}},
-    {"SLTU", {"SLTU", 0x0A, Format::R}},
+static const InstructionInfo instructionTable[] = {
 
-    {"ADDI", {"ADDI", 0x0B, Format::I}},
-    {"ANDI", {"ANDI", 0x0C, Format::I}},
-    {"ORI",  {"ORI",  0x0D, Format::I}},
-    {"XORI", {"XORI", 0x0E, Format::I}},
-    {"SLLI", {"SLLI", 0x0F, Format::I}},
-    {"SRLI", {"SRLI", 0x10, Format::I}},
+    // R-Type
+    {"ADD",   0x01, Format::R},
+    {"SUB",   0x02, Format::R},
+    {"AND",   0x03, Format::R},
+    {"OR",    0x04, Format::R},
+    {"XOR",   0x05, Format::R},
+    {"SLL",   0x06, Format::R},
+    {"SRL",   0x07, Format::R},
+    {"SRA",   0x08, Format::R},
+    {"SLT",   0x09, Format::R},
+    {"SLTU",  0x0A, Format::R},
 
-    {"LW",   {"LW",   0x15, Format::I}},
-    {"SW",   {"SW",   0x16, Format::S}},
+    // I-Type
+    {"ADDI",  0x0B, Format::I},
+    {"ANDI",  0x0C, Format::I},
+    {"ORI",   0x0D, Format::I},
+    {"XORI",  0x0E, Format::I},
+    {"SLLI",  0x0F, Format::I},
+    {"SRLI",  0x10, Format::I},
+    {"SRAI",  0x11, Format::I},
+    {"SLTI",  0x12, Format::I},
+    {"LUI",   0x13, Format::I},
+    {"LW",    0x14, Format::I},
+    {"LB",    0x15, Format::I},
+    {"LBU",   0x16, Format::I},
 
-    {"BEQ",  {"BEQ",  0x18, Format::B}},
-    {"JAL",  {"JAL",  0x1F, Format::J}}
+    // S-Type
+    {"SW",    0x17, Format::S},
+    {"SB",    0x18, Format::S},
+
+    // B-Type
+    {"BEQ",   0x19, Format::B},
+    {"BNE",   0x1A, Format::B},
+    {"BLT",   0x1B, Format::B},
+    {"BGE",   0x1C, Format::B},
+
+    // J-Type
+    {"JAL",   0x1D, Format::J},
+
+    // I-Type
+    {"JALR",  0x1E, Format::I},
+    {"ECALL", 0x1F, Format::I},
+
+    // R-Type
+    {"HALT",  0x20, Format::R}
 };
 
-const InstructionInfo* getInstruction(const std::string& mnemonic)
-{
-    std::string key = mnemonic;
+static constexpr size_t instructionCount =
+    sizeof(instructionTable) / sizeof(instructionTable[0]);
 
+static std::string toUpper(std::string s)
+{
     std::transform(
-        key.begin(),
-        key.end(),
-        key.begin(),
+        s.begin(),
+        s.end(),
+        s.begin(),
         [](unsigned char c) {
             return static_cast<char>(std::toupper(c));
         }
     );
 
-    auto it = instructionTable.find(key);
+    return s;
+}
 
-    if (it == instructionTable.end())
-        return nullptr;
+const InstructionInfo* getInstruction(const std::string& mnemonic)
+{
+    std::string key = toUpper(mnemonic);
 
-    return &it->second;
+    for (size_t i = 0; i < instructionCount; ++i) {
+        if (key == instructionTable[i].mnemonic) {
+            return &instructionTable[i];
+        }
+    }
+
+    return nullptr;
 }
 
 bool isRegister(const std::string& token)
@@ -67,6 +101,7 @@ bool isRegister(const std::string& token)
 int parseRegister(const std::string& token)
 {
     static const std::unordered_map<std::string, int> aliases = {
+
         {"zero", 0},
         {"ra",   1},
         {"sp",   2},
@@ -117,30 +152,37 @@ int parseRegister(const std::string& token)
         }
     );
 
-    auto alias = aliases.find(r);
+    auto it = aliases.find(r);
 
-    if (alias != aliases.end())
-        return alias->second;
+    if (it != aliases.end()) {
+        return it->second;
+    }
 
-
-//dobara dekhle jiski gand mei dum hai
     if (r.size() >= 2 && r[0] == 'r') {
+
         int value = 0;
 
         for (size_t i = 1; i < r.size(); ++i) {
-            if (!std::isdigit(static_cast<unsigned char>(r[i])))
-                throw std::runtime_error("Invalid register: " + token);
+
+            if (!std::isdigit(
+                    static_cast<unsigned char>(r[i]))) {
+                throw std::runtime_error(
+                    "Invalid register: " + token
+                );
+            }
 
             value = value * 10 + (r[i] - '0');
         }
 
-        if (value >= 0 && value <= 31)
+        if (value >= 0 && value <= 31) {
             return value;
+        }
     }
 
-    throw std::runtime_error("Invalid register: " + token);
+    throw std::runtime_error(
+        "Invalid register: " + token
+    );
 }
-
 bool isImmediateInstruction(const std::string& mnemonic)
 {
     static const std::unordered_set<std::string> instructions = {
@@ -192,5 +234,4 @@ bool isJumpInstruction(const std::string& mnemonic)
 
     return instructions.count(toUpper(mnemonic)) > 0;
 }
-
 } // namespace risc201
