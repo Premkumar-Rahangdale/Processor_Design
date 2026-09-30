@@ -1,0 +1,8 @@
+.begin:
+mov r4 1
+mov r2 5
+mul r2 r2 r4
+.main:
+b -4
+nop
+ret
