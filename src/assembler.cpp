@@ -111,7 +111,7 @@ string imm_decode(string &imm, int size)
 
 void first_pass()
 {
-    ifstream file("tests/input.txt");
+    ifstream file("tests/t1_asmblr.txt");
     string ins;
     int instr_count = 0;
     while (getline(file, ins))
@@ -128,8 +128,8 @@ void first_pass()
 
 void second_pass()
 {
-    ifstream in("tests/input.txt");
-    ofstream out("tests/output.txt");
+    ifstream in("tests/t1_asmblr.txt");
+    ofstream out("tests/o1_asmblr.txt");
     string ins;
     int instr_count = 0;
     while (getline(in, ins))
