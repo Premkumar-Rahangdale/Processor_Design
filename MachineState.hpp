@@ -1,3 +1,5 @@
+#pragma once
+#include "isa.hpp"
 #include <cstdint>
 #include <array>
 #include <vector>
@@ -12,10 +14,6 @@ struct Flags{
     bool neg = false;
     bool over = false;
     bool carry = false;
-
-    constexpr bool eq() const { return zero; }
-    constexpr bool gt() const { return !zero && (neg == over); }
-    constexpr bool lt() const { return neg != over; }
 };
 
 struct MachineState{
