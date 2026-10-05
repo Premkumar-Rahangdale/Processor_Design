@@ -68,44 +68,7 @@ map<int, string> Opcode {
 };
 
 
-// string disassemble(uint32_t instruction, ofstream &out) {   
-//     uint32_t opcode = extractOpcode(instruction);
-//     int i = extractImmediate(instruction);
-//     string rd = to_string(extractRd(instruction));
-//     string rs1 = to_string(extractRS1(instruction));
-//     string rs2;
-//     string imm;
-
-//     if (i) {
-//         imm = to_string(extractImm(instruction));
-//     }else {
-//         rs2 = to_string(extractRS2(instruction));
-//     }
-
-//     auto it = Opcode.find(opcode);
-//     if (it == Opcode.end()) { 
-//         cout << "invalid opcode\n"; 
-//         return; 
-//     }
-//     string op = it->second;
-    
-//     if (op == "nop" || op == "ret") {
-//         out << op << "\n";
-//     }else if (op == "b" || op == "call" || op == "beq" || op == "bgt" || op == "bsm") {
-//         out << op << ", " << to_string(extractOffset(instruction)) << "\n";
-//     }else if (op == "ld" || op == "st") {
-//         out << op << " " << rd << ", " << extractImm(instruction) << "[" << rs1 << "]\n";
-//     }else if (op == "not" || op == "mov" || op == "movu" || op == "movh") {
-//         out << op << ", R" << rd << ", " << (i ? imm: "R" + rs2) << "\n"; 
-//     }else if (op == "cmp") {
-//         out << op << ", R" << rs1 << ", " << (i ? imm: "R" + rs2) << "\n";
-//     }else {
-//         out << op << ", R" << rd << ", R" << rs1 << ", " << (i ? imm: "R" + rs2) << "\n";
-//     }
-// }
-
-string disassemble(uint32_t instruction)
-{
+string disassemble(uint32_t instruction) {
     uint32_t opcode = extractOpcode(instruction);
     int i = extractImmediate(instruction);
 
@@ -119,66 +82,34 @@ string disassemble(uint32_t instruction)
     else
         rs2 = to_string(extractRS2(instruction));
 
-
     auto it = Opcode.find(opcode);
 
     if (it == Opcode.end())
         return "invalid opcode";
 
-
     string op = it->second;
 
-
-    if (op == "nop" || op == "ret")
-    {
+    if (op == "nop" || op == "ret") {
         return op;
-    }
-
-
-    else if (op == "b" || op == "call" ||
-             op == "beq" || op == "bgt" || op == "bsm")
-    {
+    } else if (op == "b" || op == "call" || op == "beq" || op == "bgt" || op == "bsm"){
         return op + " " + to_string(extractOffset(instruction));
-    }
-
-
-    else if (op == "ld" || op == "st")
-    {
-        return op + " r" + rd + " " +
-               to_string(extractImm(instruction)) +
-               "[r" + rs1 + "]";
-    }
-
-
-    else if (op == "not" || op == "mov" ||
-             op == "movu" || op == "movh")
-    {
+    } else if (op == "ld" || op == "st") {
+        return op + " r" + rd + " " + to_string(extractImm(instruction)) + "[r" + rs1 + "]";
+    } else if (op == "not" || op == "mov" || op == "movu" || op == "movh"){
         if (i)
             return op + " r" + rd + " " + imm;
         else
             return op + " r" + rd + " r" + rs2;
-    }
-
-
-    else if (op == "cmp")
-    {
+    } else if (op == "cmp") {
         if (i)
             return op + " r" + rs1 + " " + imm;
         else
             return op + " r" + rs1 + " r" + rs2;
-    }
-
-
-    else
-    {
+    } else{
         if (i)
-        {
             return op + " r" + rd + " r" + rs1 + " " + imm;
-        }
         else
-        {
             return op + " r" + rd + " r" + rs1 + " r" + rs2;
-        }
     }
 }
 
@@ -190,29 +121,18 @@ int main() {
     string ins;
 
     while (getline(in, ins)){
-        // Remove spaces from the beginning/end
         stringstream ss(ins);
         string token;
-
         ss >> token;
 
-        // Empty line
-        if (token.empty())
-        {
+        if (token.empty()) {
             out << "\n";
             continue;
         }
-
-        // If it is a label
-        if (token[0] == '.')
-        {
+        if (token[0] == '.'){
             out << token << "\n";
-        }
-        else
-        {
-            // Convert binary string to uint32_t
-            uint32_t instruction =
-                (uint32_t)stoul(token, nullptr, 2);
+        } else {
+            uint32_t instruction = (uint32_t)stoul(token, nullptr, 2);
 
             string output = disassemble(instruction);
 
