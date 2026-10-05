@@ -1,9 +1,9 @@
-.begin:
-mov r4 1
-mov r2 5
-mul r2 r2 r4
 .main:
-b .begin
-nop
-ret
- 
+mov r4 5
+mov r3 2
+mov r1 1
+.loop:
+mul r1 r1 r4
+sub r3 r3 1
+cmp r3 0
+bgt .loop
