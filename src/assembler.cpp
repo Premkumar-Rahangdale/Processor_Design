@@ -12,9 +12,32 @@ public:
         stringstream ss(line);
         vector<string> tokens;
         string token;
+        bool transform_baseoffset = false;
         while (ss >> token)
         {
             tokens.push_back(token);
+            if(tokens.size()==1 && (token == "ld" || token == "st")){
+                transform_baseoffset = true;
+            }
+        }
+        if(transform_baseoffset){
+            string baseoff = tokens.back();
+            tokens.pop_back();
+            string offset="";
+            string base="";
+            bool sw=false;
+            for(auto it:baseoff){
+                if(it==']'){break;}
+                if(it=='['){sw=true;continue;}
+                if(!sw){
+                    offset+=it;
+                }
+                else{
+                    base+=it;
+                }
+            }
+            tokens.push_back(base);
+            tokens.push_back(offset);
         }
         return tokens;
     }

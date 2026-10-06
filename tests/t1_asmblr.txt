@@ -2,6 +2,7 @@
 mov r4 5
 mov r3 2
 mov r1 1
+ld r1 4[r14]
 .loop:
 mul r1 r1 r4
 sub r3 r3 1
