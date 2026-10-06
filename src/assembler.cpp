@@ -4,9 +4,13 @@
 #include <sstream>
 
 using namespace std;
-class Assembler : public MachineState
+class Assembler
 {
 public:
+    void assemble(MachineState & machine){
+        first_pass(machine);
+        second_pass(machine);
+    }
     vector<string> tokenize(string &line)
     {
         stringstream ss(line);
@@ -75,7 +79,7 @@ public:
         return ans;
     }
 
-    void first_pass()
+    void first_pass(MachineState& machine)
     {
         ifstream input("tests/t1_asmblr.txt");
         string ins;
@@ -85,14 +89,14 @@ public:
             if (ins[0] == '.')
             {
                 ins.pop_back();
-                MachineState::labelAddress[ins] = instr_count + 1;
+                machine.labelAddress[ins] = instr_count + 1;
             }
             instr_count++;
         }
         input.close();
     }
 
-    void second_pass()
+    void second_pass(MachineState &machine)
     {
         ifstream in("tests/t1_asmblr.txt");
         ofstream out("tests/o1_asmblr.txt");
@@ -163,7 +167,7 @@ public:
             }
             else if (branch_instr == 1)
             {
-                int offset = MachineState::labelAddress[tokens[1]] - instr_count;
+                int offset = machine.labelAddress[tokens[1]] - instr_count;
                 for (int i = 26; i >= 0; i--)
                 {
                     output += (char)(((offset >> i) & 1) + '0');
@@ -174,7 +178,7 @@ public:
                 for (int i = 0; i < 27; i++)
                     output += '0';
             }
-            MachineState::instrMemory.push_back(output);
+            machine.instrMemory.push_back(output);
             instr_count++;
             out << output << "\n";
             out.flush();
@@ -183,3 +187,4 @@ public:
         out.close();
     }
 };
+
