@@ -21,6 +21,7 @@ public:
     vector<int> memory = vector<int>(memoryWords, 0);
     vector<string> instrMemory;
     unordered_map <string, int> labelAddress; 
+    unordered_map <int, string> inverseLabelAddress;
     int pc = 0;
 
     void init() {

@@ -26,6 +26,14 @@ namespace isa{
         {"asr", 3}, {"nop", 0}, {"ld", 3}, {"st", 3}, {"beq", 1},
         {"bgt", 1}, {"bsm", 1}, {"b", 1}, {"call", 1}, {"ret", 0}
     };
+
+    unordered_map<int, string> inverseOpcode {
+    {1, "add"}, {2, "sub"}, {3, "mul"}, {4, "div"}, {5, "mod"},
+    {6, "cmp"}, {7, "and"}, {8, "or"}, {9, "not"}, {10, "xor"},
+    {11, "mov"}, {12, "movu"}, {13, "movh"}, {14, "lsl"}, {15, "lsr"},
+    {16, "asr"}, {17, "nop"}, {18, "ld"}, {19, "st"}, {20, "beq"},
+    {21, "bgt"}, {22, "bsm"}, {23, "b"}, {24, "call"}, {25, "ret"}
+    };
 };
 // constexpr unsigned OPCODE_BITS  = 5;
 // constexpr unsigned OPCODE_SHIFT = 32 - OPCODE_BITS;

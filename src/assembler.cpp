@@ -90,6 +90,7 @@ public:
             {
                 ins.pop_back();
                 machine.labelAddress[ins] = instr_count + 1;
+                machine.inverseLabelAddress[instr_count + 1] = ins;
             }
             instr_count++;
         }
@@ -107,8 +108,10 @@ public:
             string output;
             vector<string> tokens = tokenize(ins);
             int branch_instr = isa::branch[tokens[0]];
-            if (ins[0] == '.')
+            if (ins[0] == '.'){
+                instr_count++;
                 continue;
+            }
             output += isa::opcode[tokens[0]];
             if (branch_instr == 3)
             {
