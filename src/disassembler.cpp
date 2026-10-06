@@ -78,22 +78,79 @@ public:
             output = op + " ";
             output += machine.inverseLabelAddress[instr_count + extractOffset(instruction)];
         } else if (op == "ld" || op == "st") {
-            output = op + " r" + rd + " " + to_string(extractImm(instruction)) + "[r" + rs1 + "]";
+            output = op;
+            if(rd == "1") output +=" ra";
+            else if(rd == "2") output +=" sp";
+            else output += " r" + rd;
+
+            output += " " + to_string(extractImm(instruction));
+
+            if(rs1 == "1") output +="[ra]";
+            else if(rs1 == "2") output +="[sp]";
+            else output+= "[r" + rs1 + "]";
+
         } else if (op == "not" || op == "mov" || op == "movu" || op == "movh"){
-            if (i)
-                output = op + " r" + rd + " " + imm;
-            else
-                output = op + " r" + rd + " r" + rs2;
+            if (i){
+                output = op;
+                if(rd == "1") output +=" ra";
+                else if(rd == "2") output +=" sp";
+                else output += " r" + rd;
+                output += " " + imm;
+            }
+            else{
+                output = op;
+                if(rd == "1") output +=" ra";
+                else if(rd == "2") output +=" sp";
+                else output += " r" + rd; 
+                
+                if(rs2 == "1") output +=" ra";
+                else if(rs2 == "2") output +=" sp";
+                else output += " r" + rs2;
+            }
         } else if (op == "cmp") {
-            if (i)
-                output = op + " r" + rs1 + " " + imm;
-            else
-                output = op + " r" + rs1 + " r" + rs2;
+            if (i){
+                output = op;
+                if(rs1 == "1") output +=" ra";
+                else if(rs1 == "2") output +=" sp";
+                else output += " r" + rs1;
+                output += " " + imm;
+            }
+            else{
+                output = op;
+                if(rs1 == "1") output +=" ra";
+                else if(rs1 == "2") output +=" sp";
+                else output +=" r" + rs1;
+
+                if(rs2 == "1") output +=" ra";
+                else if(rs2 == "2") output +=" sp";
+                else output += " r" + rs2;
+            }
         } else{
-            if (i)
-                output = op + " r" + rd + " r" + rs1 + " " + imm;
-            else
-                output = op + " r" + rd + " r" + rs1 + " r" + rs2;
+            if (i){
+                output = op;
+                if(rd == "1") output +=" ra";
+                else if(rd == "2") output +=" sp";
+                else output += " r" + rd;
+                
+                if(rs1 == "1") output +=" ra";
+                else if(rs1 == "2") output +=" sp";
+                else output += " r" + rs1;
+                output += " " + imm;
+            }
+            else{
+                output = op;
+                if(rd == "1") output +=" ra";
+                else if(rd == "2") output +=" sp";
+                else output += " r" + rd;
+                
+                if(rs1 == "1") output +=" ra";
+                else if(rs1 == "2") output +=" sp";
+                else output += " r" + rs1;
+                
+                if(rs2 == "1") output +=" ra";
+                else if(rs2 == "2") output +=" sp";
+                else output += " r" + rs2;
+            }
         }
         out << output << "\n";
         out.flush();

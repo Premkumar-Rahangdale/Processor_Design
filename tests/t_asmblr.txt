@@ -8,3 +8,5 @@ add r3 r3 1
 cmp r3 r1       
 beq .loop 
 st r2 0[r0]
+add sp sp 8
+st ra 0[sp]

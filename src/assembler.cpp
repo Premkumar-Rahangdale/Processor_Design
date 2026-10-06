@@ -48,6 +48,14 @@ public:
 
     string reg_decode(string &reg)
     {
+        if(reg == "sp") {
+            string act = "r2";
+            return reg_decode(act);
+        }
+        if(reg == "ra") {
+            string act = "r1";
+            return reg_decode(act);
+        }
         string ans;
         if (reg.size() == 2)
         {
