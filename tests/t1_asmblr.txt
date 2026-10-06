@@ -1,10 +1,10 @@
 .main:
-mov r4 5
-mov r3 2
 mov r1 1
-ld r1 4[r14]
+mov r2 0
+mov r3 10
 .loop:
-mul r1 r1 r4
-sub r3 r3 1
-cmp r3 0
-bgt .loop
+add r2 r2 r1    
+add r1 r1 1     
+cmp r1 r3       
+bsm .loop 
+st r2 0[r0] 

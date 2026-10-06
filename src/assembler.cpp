@@ -81,7 +81,7 @@ public:
 
     void first_pass(MachineState& machine)
     {
-        ifstream input("tests/t1_asmblr.txt");
+        ifstream input("tests/t_asmblr.txt");
         string ins;
         int instr_count = 0;
         while (getline(input, ins))
@@ -99,8 +99,8 @@ public:
 
     void second_pass(MachineState &machine)
     {
-        ifstream in("tests/t1_asmblr.txt");
-        ofstream out("tests/o1_asmblr.txt");
+        ifstream in("tests/t_asmblr.txt");
+        ofstream out("tests/o_asmblr.txt");
         string ins;
         int instr_count = 0;
         while (getline(in, ins))

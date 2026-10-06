@@ -45,8 +45,8 @@ public:
     }
 
     void disassemble(MachineState &machine) {
-        ifstream in("tests/o1_asmblr.txt");
-        ofstream out("tests/o1_disasmblr.txt");
+        ifstream in("tests/o_asmblr.txt");
+        ofstream out("tests/o_disasmblr.txt");
 
         string ins;
         int instr_count = 0;
@@ -99,6 +99,8 @@ public:
         out.flush();
         instr_count++;
         };    
+        in.close();
+        out.close();
     }
 };
 
