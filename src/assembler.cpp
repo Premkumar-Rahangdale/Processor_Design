@@ -117,6 +117,7 @@ public:
             vector<string> tokens = tokenize(ins);
             int branch_instr = isa::branch[tokens[0]];
             if (ins[0] == '.'){
+                machine.instrMemory.push_back(ins);
                 instr_count++;
                 continue;
             }
