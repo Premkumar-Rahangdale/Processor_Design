@@ -8,3 +8,5 @@ add r1 r1 1
 cmp r1 r3
 bsm .loop
 st r2 0[r0]
+sub r1 r1 10
+st r1 1[r4]

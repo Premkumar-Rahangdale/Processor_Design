@@ -21,22 +21,8 @@ void Pipeline6stage::fault(const std::string& msg) {
 // Sequential model: each instruction goes through all six stages before the
 // next one is fetched. Because of that there are no hazards and no flushes yet.
 void Pipeline6stage::run(MachineState& machine) {
-    machine.reset();          // does not touch instrMemory / labels
-    halted = false;
-    long executed = 0;
-
-    while (!halted && machine.pc >= 0 && machine.pc < (int)machine.instrMemory.size() && executed < kMaxInstructions)
-    {
-        if (!IF_Stage(machine)) continue;   // label line, skip
-
-        ID_Stage(machine);   if (halted) break;
-        RR_Stage(machine);
-        EX_Stage(machine);   if (halted) break;
-        MEM_Stage(machine);  if (halted) break;
-        RW_Stage(machine);
-
-        executed++;
-    }
+    begin(machine);
+    while (step(machine)) {}
 
     if (executed >= kMaxInstructions)
         std::cerr << "[pipeline] stopped: instruction limit reached\n";
@@ -52,6 +38,57 @@ void Pipeline6stage::run(MachineState& machine) {
     }
 }
 
+
+// begin: fresh start for run() / the debugger.
+void Pipeline6stage::begin(MachineState& machine) {
+    machine.reset();          // does not touch instrMemory / labels
+    halted = false;
+    executed = 0;
+}
+
+// finished: nothing left for step() to execute.
+bool Pipeline6stage::finished(const MachineState& machine) const {
+    return halted || machine.pc < 0 || machine.pc >= (int)machine.instrMemory.size() || executed >= kMaxInstructions;
+}
+
+// nextPc: index of the next real instruction (label lines are skipped), -1 if none.
+int Pipeline6stage::nextPc(const MachineState& machine) const {
+    if (finished(machine)) return -1;
+    for (int p = machine.pc; p < (int)machine.instrMemory.size(); p++) {
+        const std::string& word = machine.instrMemory[p];
+        if (word.empty() || word[0] != '.') return p;
+    }
+    return -1;
+}
+
+// step: one instruction through all six stages, starting at machine.pc.
+// Label lines in front of it are skipped. false = nothing was executed.
+bool Pipeline6stage::step(MachineState& machine) {
+    while (!finished(machine))
+    {
+        if (!IF_Stage(machine)) continue;   // label line, skip
+
+        ID_Stage(machine);   if (halted) return false;
+        RR_Stage(machine);
+        EX_Stage(machine);   if (halted) return false;
+        MEM_Stage(machine);  if (halted) return false;
+        RW_Stage(machine);
+
+        executed++;
+        return true;
+    }
+    return false;
+}
+
+// stepN: up to n instructions, stops early at the end of the program or a fault.
+int Pipeline6stage::stepN(MachineState& machine, int n, std::vector<int>* executedPcs) {
+    int count = 0;
+    while (count < n && step(machine)) {
+        count++;
+        if (executedPcs) executedPcs->push_back(mem_rw.pc);
+    }
+    return count;
+}
 
 // IF: fetch instrMemory[pc], advance pc.
 bool Pipeline6stage::IF_Stage(MachineState& machine) {
@@ -175,4 +212,4 @@ void Pipeline6stage::RW_Stage(MachineState& m) {
         if (L.branchTaken) std::cout << "  [jump to " << L.branchTarget << "]";
         std::cout << "\n";
     }
-}
+}

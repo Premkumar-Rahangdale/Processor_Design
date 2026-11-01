@@ -31,8 +31,29 @@ struct Latch {
 class Pipeline6stage : public controlunit
 {
 public:
-    bool trace = true;           // print one line per instruction in RW
+    bool trace = false;           // print one line per instruction in RW
     void run(MachineState& machine);
+
+    // ---- step-wise execution (used by the debugger) -------------------------
+    // The same six stages as run(); only the loop around them is different.
+    //
+    // begin()   : fresh start. machine.reset() (registers, memory, flags, pc),
+    //             instrMemory / labels are kept.
+    // step()    : executes ONE instruction, starting at machine.pc (label lines
+    //             are skipped). Returns false if nothing was executed because the
+    //             program is finished or a fault stopped it.
+    // stepN()   : executes up to n instructions from machine.pc and returns how
+    //             many were really executed. If executedPcs is given, the pc
+    //             (index in instrMemory) of every executed instruction is appended.
+    // nextPc()  : index of the instruction step() would execute next, -1 if none.
+    // finished(): true when step() has nothing left to execute.
+    void begin(MachineState& machine);
+    bool step(MachineState& machine);
+    int  stepN(MachineState& machine, int n, std::vector<int>* executedPcs = nullptr);
+    int  nextPc(const MachineState& machine) const;
+    bool finished(const MachineState& machine) const;
+    bool faulted() const { return halted; }              // stopped by a fault
+    long instructionsExecuted() const { return executed; }
 
 private:
     static constexpr int  kRa = 1;                 // "ra" is r1 in your assembler
@@ -40,6 +61,7 @@ private:
 
     Latch if_id, id_rr, rr_ex, ex_mem, mem_rw;
     bool halted = false;
+    long executed = 0;           // instructions completed since begin()
     ALU alu_unit;
 
     // returns false if the fetched entry was a label (nothing to execute)
