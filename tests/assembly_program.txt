@@ -1,0 +1,13 @@
+// this is a function for finding sum of numbers from 1 to 9
+.main:
+mov r1 1
+mov r2 0
+mov r3 10
+.loop:
+add r2  r2      r1    
+add r1 r1 1     
+
+cmp r1 r3       // breaks when it reaches the value of 10
+bsm .loop 
+st r2 0[r0] 
+//thanks

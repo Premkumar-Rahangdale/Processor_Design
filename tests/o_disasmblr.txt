@@ -1,12 +1,10 @@
 .main:
-mov ra 5
-mov sp 1
-mov r3 1
+mov ra 1
+mov sp 0
+mov r3 10
 .loop:
-mul sp sp r3
-add r3 r3 1
-cmp r3 ra
-beq .loop
+add sp sp ra
+add ra ra 1
+cmp ra r3
+bsm .loop
 st sp 0[r0]
-add sp sp 8
-st ra 0[sp]

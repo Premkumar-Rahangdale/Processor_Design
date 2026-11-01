@@ -6,11 +6,14 @@
 #include "src/controlunit.cpp"
 #include "src/alu.cpp"
 #include "src/pipeline6stage.cpp"
+#include "src/loader.cpp"
 
 using namespace std;
 
 int main(){
     MachineState machine;
+    Loader loader;
+    loader.load();
     Assembler assembler;
     assembler.assemble(machine);
     Disassembler disassembler;
