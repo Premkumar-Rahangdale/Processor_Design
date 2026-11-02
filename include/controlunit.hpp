@@ -75,6 +75,10 @@ public:
     void useMicrocode(const MicroControlUnit *unit) { micro = unit; }
     bool usesMicrocode() const { return micro != nullptr; }
 
+    // Extra clocks the control path needs to refill after the instruction flow is redirected (and at
+    // start-up): 0 for the hardwired and the horizontal unit, 1 for the vertical unit (micro-decode stage).
+    int decodePenalty() const;
+
 private:
     const MicroControlUnit *micro = nullptr;   // nullptr = hardwired decoder
 

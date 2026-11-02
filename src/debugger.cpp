@@ -13,15 +13,15 @@ using namespace std;
 // P.E.K.K.A. debug mode.
 //
 // Runs the assembled program a few instructions at a time on the existing
-// Pipeline6stage (begin / step / stepN) and shows what each step changed.
-// Include this file after pipeline6stage.cpp and before pekka.cpp.
+// the pipeline it is given (4- or 6-stage, begin / step / stepN) and shows what each step changed.
+// Include this file after pipeline.cpp and pipeline6stage.cpp and before pekka.cpp.
 //
 // Commands:  step [n] | first <n> | registers | memory | state | help | exit
 class PekkaDebugger
 {
 private:
     MachineState &machine;
-    Pipeline6stage pipeline;
+    Pipeline &pipeline;      // the pipeline chosen in the CLI (stage count, control unit, hazard / predictor options)
     vector<string> source;   // source[i] = assembly text of instrMemory[i] (tests/t_asmblr.txt)
 
     // what the machine looked like before a command, to find out what changed
@@ -270,13 +270,13 @@ private:
 
     void cmd_state()
     {
-        cout << "pc = " << current_pc() << "    executed: " << pipeline.instructionsExecuted()
+        cout << "pc = " << current_pc() << "    executed: " << pipeline.instructionsExecuted() << "    clocks: " << pipeline.cycles()
              << "    flags: Z=" << machine.zero << " N=" << machine.neg << " O=" << machine.over << " C=" << machine.carry << "\n";
         show_next();
     }
 
 public:
-    explicit PekkaDebugger(MachineState &m) : machine(m) {}
+    PekkaDebugger(MachineState &m, Pipeline &p) : machine(m), pipeline(p) {}
 
     void run()
     {

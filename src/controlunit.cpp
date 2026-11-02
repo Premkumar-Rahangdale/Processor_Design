@@ -15,6 +15,10 @@ void controlunit::generatecontrolsignals(const std::string &opcodeandI) {
     else       decodeHardwired(opcodeandI);                       // from the decode logic
 }
 
+int controlunit::decodePenalty() const {
+    return micro ? micro->decodePenalty() : 0;
+}
+
 // Hardwired decoder: one AND gate per instruction.
 void controlunit::decodeHardwired(const std::string &opcodeandI) {
     std::bitset<5> opcode;

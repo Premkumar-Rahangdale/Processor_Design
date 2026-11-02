@@ -64,6 +64,9 @@ public:
     virtual int wordBits() const = 0;                    // width of one control-memory word
     virtual int fetchStages() const = 0;                 // stages before execute + 1
     int wordsUsed() const { return static_cast<int>(image_.words.size()); }
+    // Clocks lost refilling the control path after a redirect: stages in front of execute minus the
+    // fetch itself. Horizontal 0, vertical 1 (the micro-decode stage).
+    int decodePenalty() const { return fetchStages() - 2; }
     long controlStoreBits() const { return static_cast<long>(wordsUsed()) * wordBits(); }
 
     // Control-store listing: address, label, microassembly, encoded word.

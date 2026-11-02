@@ -3,7 +3,10 @@
 #include <cctype>
 #include <exception>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
 #include <string>
 
 using namespace std;
@@ -11,10 +14,13 @@ using namespace std;
 // P.E.K.K.A. - terminal style command line interface of the RISC201 processor.
 //
 // It only drives the parts that already exist:
-//   Loader, Assembler, Disassembler, Pipeline6stage, PekkaDebugger (and MachineState).
+//   Loader, Assembler, Disassembler, Pipeline4stage / Pipeline6stage, the hardwired / horizontal /
+//   vertical control units, PekkaDebugger (and MachineState).
 // Include this file after those (see PekkaMain.cpp).
 //
 // Commands:  start | load | assemble | disassemble | debug | execute | help | exit
+// Options:   pipeline <4|6> | control <hardwired|horizontal|vertical> | forwarding <on|off> |
+//            predictor <none|2bit> | config
 class Pekka
 {
 private:
@@ -26,6 +32,14 @@ private:
     bool started = false;    // processor powered on
     bool loaded = false;     // tests/t_asmblr.txt holds a cleaned program
     bool assembled = false;  // machine.instrMemory + tests/o_asmblr.txt are ready
+
+    // processor configuration (used by 'execute' and 'debug')
+    int stages = 6;                 // 4 or 6 pipeline stages
+    int control = 0;                // 0 hardwired, 1 horizontal microprogram, 2 vertical microprogram
+    bool forwarding = false;        // data hazards: false = stalls only, true = forwarding
+    bool predictor = false;         // branch prediction: false = predict not taken, true = 2-bit predictor + BTB
+    HorizontalMicroControlUnit horizontal;
+    VerticalMicroControlUnit vertical;
 
     // ANSI colours (the terminal must understand them, see PekkaMain.cpp)
     const string RESET = "\033[0m";
@@ -44,6 +58,15 @@ private:
 
     void clear_screen() { cout << "\033[2J\033[H"; }
 
+public:
+    Pekka()
+    {
+        const MicroProgram program = buildRisc201Microprogram();   // the control memory contents
+        horizontal.load(program);
+        vertical.load(program);
+    }
+
+private:
     void banner()
     {
         cout << CYAN << BOLD;
@@ -94,6 +117,103 @@ private:
         assembled = false;
     }
 
+    // ------------------------------------------------------------ configuration
+
+    string control_name() const
+    {
+        return control == 1 ? "horizontal microprogrammed" : control == 2 ? "vertical microprogrammed" : "hardwired";
+    }
+
+    // The pipeline selected by the options. The micro control units are owned by Pekka.
+    unique_ptr<Pipeline> make_pipeline()
+    {
+        unique_ptr<Pipeline> p;
+        if (stages == 4)
+            p = make_unique<Pipeline4stage>();
+        else
+            p = make_unique<Pipeline6stage>();
+        p->forwarding = forwarding;
+        p->predictor = predictor ? Predictor::TWO_BIT : Predictor::NOT_TAKEN;
+        p->useMicrocode(control == 1 ? static_cast<const MicroControlUnit *>(&horizontal)
+                        : control == 2 ? static_cast<const MicroControlUnit *>(&vertical)
+                                       : nullptr);
+        return p;
+    }
+
+    string config_text() const
+    {
+        return to_string(stages) + "-stage pipeline, " + control_name() + " control, " +
+               (forwarding ? "forwarding" : "stalls only") + ", " +
+               (predictor ? "2-bit branch prediction" : "predict-not-taken");
+    }
+
+    void cmd_config()
+    {
+        cout << BOLD << "Processor configuration" << RESET << "\n";
+        cout << "  pipeline    " << CYAN << stages << "-stage" << RESET << (stages == 4 ? "  (IF ID EX/MEM WB)" : "  (IF ID RR EX MEM WB)") << "\n";
+        cout << "  control     " << CYAN << control_name() << RESET << "\n";
+        cout << "  hazards     " << CYAN << (forwarding ? "forwarding" : "stalls only") << RESET << "\n";
+        cout << "  branches    " << CYAN << (predictor ? "2-bit predictor with branch target buffer" : "predict not taken") << RESET << "\n";
+    }
+
+    void cmd_pipeline(const string &arg)
+    {
+        if (arg == "4")
+            stages = 4;
+        else if (arg == "6")
+            stages = 6;
+        else
+        {
+            fail("usage: pipeline <4|6>   (now: " + to_string(stages) + ")");
+            return;
+        }
+        ok("pipeline: " + config_text());
+    }
+
+    void cmd_control(const string &arg)
+    {
+        if (arg == "hardwired")
+            control = 0;
+        else if (arg == "horizontal")
+            control = 1;
+        else if (arg == "vertical")
+            control = 2;
+        else
+        {
+            fail("usage: control <hardwired|horizontal|vertical>   (now: " + string(control == 0 ? "hardwired" : control == 1 ? "horizontal" : "vertical") + ")");
+            return;
+        }
+        ok("control unit: " + config_text());
+    }
+
+    void cmd_forwarding(const string &arg)
+    {
+        if (arg == "on")
+            forwarding = true;
+        else if (arg == "off")
+            forwarding = false;
+        else
+        {
+            fail("usage: forwarding <on|off>   (now: " + string(forwarding ? "on" : "off") + ")");
+            return;
+        }
+        ok("data hazards: " + config_text());
+    }
+
+    void cmd_predictor(const string &arg)
+    {
+        if (arg == "2bit")
+            predictor = true;
+        else if (arg == "none")
+            predictor = false;
+        else
+        {
+            fail("usage: predictor <none|2bit>   (now: " + string(predictor ? "2bit" : "none") + ")");
+            return;
+        }
+        ok("branch prediction: " + config_text());
+    }
+
     // ---------------------------------------------------------------- commands
 
     void cmd_help()
@@ -104,7 +224,12 @@ private:
         cout << "  " << CYAN << "assemble" << RESET << "      assemble the loaded program into machine code\n";
         cout << "  " << CYAN << "disassemble" << RESET << "   disassemble the machine code back into assembly\n";
         cout << "  " << CYAN << "debug" << RESET << "         enter debug mode\n";
-        cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the 6-stage pipeline\n";
+        cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the configured pipeline and show the statistics\n";
+        cout << "  " << CYAN << "pipeline" << RESET << " <4|6>  choose the number of pipeline stages\n";
+        cout << "  " << CYAN << "control" << RESET << " <hardwired|horizontal|vertical>  choose the control unit\n";
+        cout << "  " << CYAN << "forwarding" << RESET << " <on|off>  data hazards: forward results or stall only\n";
+        cout << "  " << CYAN << "predictor" << RESET << " <none|2bit>  branch prediction: predict not taken or 2-bit predictor\n";
+        cout << "  " << CYAN << "config" << RESET << "        show the processor configuration\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
         cout << "  " << CYAN << "exit" << RESET << "          shut down and leave P.E.K.K.A.\n";
     }
@@ -236,7 +361,9 @@ private:
             fail("no machine code - use 'assemble' first");
             return;
         }
-        PekkaDebugger debugger(machine);
+        unique_ptr<Pipeline> pipeline = make_pipeline();
+        info("debugging on the " + config_text());
+        PekkaDebugger debugger(machine, *pipeline);
         debugger.run();
         info("left debug mode");
     }
@@ -251,11 +378,11 @@ private:
             return;
         }
 
-        info("executing on the 6-stage pipeline");
+        info("executing on the " + config_text());
+        unique_ptr<Pipeline> pipeline = make_pipeline();
         try
         {
-            Pipeline6stage pipeline;
-            pipeline.run(machine);
+            pipeline->run(machine);
         }
         catch (const exception &e)
         {
@@ -267,7 +394,22 @@ private:
             fail("execution failed");
             return;
         }
-        ok("execution finished");
+        if (pipeline->faulted())
+            fail("stopped by an exception (cause " + to_string(pipeline->faultCause()) + ", R4 = cause, R5 = index of the faulting instruction)");
+        else
+            ok("execution finished");
+        print_statistics(*pipeline);
+    }
+
+    void print_statistics(const Pipeline &p)
+    {
+        cout << "  instructions " << BOLD << p.instructionsExecuted() << RESET << "    clocks " << BOLD << p.cycles() << RESET
+             << "    CPI " << BOLD << fixed << setprecision(2) << p.cpi() << RESET << "\n";
+        cout << "  data-hazard stalls " << p.dataStallCycles() << "    branches " << p.branches() << "    mispredicted " << p.mispredictions();
+        if (p.branches() > 0)
+            cout << " (accuracy " << setprecision(1) << 100.0 * p.predictionAccuracy() << "%)";
+        cout << "    squashed " << p.squashedInstructions() << "    control-path bubbles " << p.controlBubbles() << "\n";
+        cout << defaultfloat;
     }
 
 public:
@@ -290,6 +432,18 @@ public:
             if (cmd.empty())
                 continue;
 
+            string arg, extra;
+            {
+                istringstream words(cmd);
+                words >> cmd >> arg >> extra;
+            }
+            bool takes_arg = (cmd == "pipeline" || cmd == "control" || cmd == "forwarding" || cmd == "predictor");
+            if (!extra.empty() || (!arg.empty() && !takes_arg))
+            {
+                fail("'" + cmd + "' takes " + (takes_arg ? "one argument" : "no arguments") + "  (type 'help')");
+                continue;
+            }
+
             if (cmd == "start")
                 cmd_start();
             else if (cmd == "load")
@@ -302,6 +456,16 @@ public:
                 cmd_debug();
             else if (cmd == "execute")
                 cmd_execute();
+            else if (cmd == "pipeline")
+                cmd_pipeline(arg);
+            else if (cmd == "control")
+                cmd_control(arg);
+            else if (cmd == "forwarding")
+                cmd_forwarding(arg);
+            else if (cmd == "predictor")
+                cmd_predictor(arg);
+            else if (cmd == "config")
+                cmd_config();
             else if (cmd == "help")
                 cmd_help();
             else if (cmd == "exit")

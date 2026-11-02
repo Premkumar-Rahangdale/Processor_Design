@@ -233,3 +233,38 @@ Build: add the four `src/micro*.cpp` files to the compile line. `isa.hpp` is del
 - Stack-boundary checking (cause 4) is reserved for the stack-protection phase.
 - After an exception the machine stops; there is no handler dispatch.
 - There is no interactive micro-PC view yet; `listing()` and the counters are the hooks for the CLI.
+
+
+## Control-unit integration
+
+`controlunit` is the single decoder interface of the processor: opcode + I bit in, `controlsignals` out.
+It has two sources:
+
+| source | how selected | where the signals come from |
+|---|---|---|
+| hardwired (default) | `useMicrocode(nullptr)` | AND-gate decode in `controlunit::decodeHardwired()` |
+| microprogrammed | `useMicrocode(&horizontalUnit)` / `useMicrocode(&verticalUnit)` | the control memory of the chosen `MicroControlUnit` |
+
+`Pipeline6stage` inherits `controlunit`, so `pipeline.useMicrocode(&unit)` is all the pipeline needs.
+
+`MicroControlUnit::controlSignalsFor()` reads the signals from the control memory: at every `load()` the
+microroutine of each opcode (found through the switch unit) is walked, following both sides of each `mbeq`
+until `mb .begin`, and the micro-operations on the way are converted to flags:
+
+| micro-operation in the routine | flag |
+|---|---|
+| ALU args, opcode 1..16 | isAdd, isSub, isMul, isDiv, isMod, isCmp, isAnd, isOR, isNot, isXor, isMov, isMovu, isMovh, isLsl, isLsr, isAsr |
+| memory load / store args | isLd / isSt (the ALU add inside them forms the address and does not set isAdd) |
+| `pc <- branchTarget` guarded by `mbeq` on flags.Z / GT / LT | isBeq / isBgt / isBsm |
+| `pc <- branchTarget`, unguarded | isB (isCall if the routine also writes r1) |
+| `pc <- regVal` | isRet |
+| routine with no effect | isNop |
+| opcode with no routine in the switch table | no flags: isKnown() == false (illegal opcode) |
+
+isImm is bit 5 of the instruction. The vertical unit reads its words through the micro-decode unit, the horizontal
+unit reads them directly, so both are checked independently. Timing of the micro-sequencer is not part of this
+path; it is reported by `MicroControlUnit::run()`.
+
+`MicroControlUnit::decodePenalty()` returns the clocks the control path needs to refill after the instruction flow is
+flushed (and at start-up): horizontal 0, vertical 1 (the micro-decode stage). The pipelines use it to charge the vertical
+unit one extra clock per misprediction/exception flush and once at start-up (see `docs/Pipelines.MD`).
