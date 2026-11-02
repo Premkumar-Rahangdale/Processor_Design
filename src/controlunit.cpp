@@ -1,12 +1,22 @@
 #include "../include/controlunit.hpp"
+#include "../include/microcontrolunit.hpp"
 #include <bitset>
 
 void controlunit::reset() {
     signals = controlsignals{};
 }
 
+// Entry point used by the pipeline (ID stage).
 void controlunit::generatecontrolsignals(const std::string &opcodeandI) {
     reset();
+    if (opcodeandI.size() < 6) return;          // not an instruction: no signals, isKnown() is false
+
+    if (micro) signals = micro->controlSignalsFor(opcodeandI);   // from the control memory
+    else       decodeHardwired(opcodeandI);                       // from the decode logic
+}
+
+// Hardwired decoder: one AND gate per instruction.
+void controlunit::decodeHardwired(const std::string &opcodeandI) {
     std::bitset<5> opcode;
     for(int i=0;i<5;i++){
         opcode[i]=(opcodeandI[i]-'0');

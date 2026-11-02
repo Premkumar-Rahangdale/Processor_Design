@@ -212,4 +212,4 @@ void Pipeline6stage::RW_Stage(MachineState& m) {
         if (L.branchTaken) std::cout << "  [jump to " << L.branchTarget << "]";
         std::cout << "\n";
     }
-}
+}
