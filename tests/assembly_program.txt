@@ -1,15 +1,18 @@
 // this is a function for finding sum of numbers from 1 to 9
+
 .main:
-mov r1 1
-mov r2 0
+mov r6 1
+mov r5 0
 mov r3 10
 .loop:
-add r2  r2      r1    
-add r1 r1 1     
+add r5  r5      r6    
+add r6 r6 1     
 
-cmp r1 r3       // breaks when it reaches the value of 10
+cmp r6 r3       // breaks when it reaches the value of 10
 bsm .loop 
-st r2 0[r0]
-sub r1 r1 10
-st r1 1[r4]
+st r5 0[r0]
+call .func
 //thanks
+.func:
+add r7 r7 100
+ret

@@ -2,6 +2,12 @@
 #include <iomanip>
 #include <iostream>
 
+namespace {
+constexpr int kStackLowerBound = 3072;
+constexpr int kStackUpperBound = 4095;
+constexpr int kStackEmptyPointer = kStackUpperBound + 1;
+}
+
 Pipeline::Pipeline(std::vector<Stage> layout, std::vector<std::string> names)
     : layout_(std::move(layout)), names_(std::move(names))
 {
@@ -32,6 +38,7 @@ int Pipeline::signExtend(int v, int bits) {
 // ---------------------------------------------------------------------------
 void Pipeline::begin(MachineState& m) {
     m.reset();                                   // does not touch instrMemory / labels
+    m.Reg[2] = kStackEmptyPointer;               // full-descending stack starts empty
     for (Latch& l : slot_) l = Latch{};
     halted_ = false;
     faultCause_ = 0;
@@ -338,6 +345,19 @@ void Pipeline::exStage(MachineState& m, Latch& L, const std::vector<Latch>& snap
             return;
         }
         L.aluResult = static_cast<int>(r.value);
+        if (L.dest == 2) {
+            const int newSp = L.aluResult;
+            if (newSp < kStackLowerBound) {
+                L.fault = pcause::STACK_OVERFLOW;
+                L.faultMsg = "stack overflow: stack pointer crossed the lower boundary";
+                return;
+            }
+            if (newSp > kStackEmptyPointer) {
+                L.fault = pcause::STACK_POINTER_CORRUPTION;
+                L.faultMsg = "stack pointer corruption: r2 is outside the permitted stack range";
+                return;
+            }
+        }
         if (r.updateFlags) {                                 // only cmp sets the flags
             sFz_ = r.zero; sFn_ = r.neg; sFo_ = r.over; sFc_ = r.carry;
             L.setsFlags = true;
@@ -365,6 +385,20 @@ void Pipeline::memStage(MachineState& m, Latch& L) {
     const controlsignals& s = L.sig;
     if (s.isLd || s.isSt) {
         int addr = L.aluResult;
+        if (L.rs1 == 2) {
+            if (s.isLd && addr == kStackEmptyPointer) {
+                L.fault = pcause::STACK_UNDERFLOW;
+                L.faultMsg = "stack underflow: pop attempted on an empty stack";
+                return;
+            }
+            if (addr < kStackLowerBound || addr > kStackUpperBound) {
+                L.fault = s.isSt ? pcause::STACK_OVERFLOW : pcause::STACK_ADDRESS_VIOLATION;
+                L.faultMsg = s.isSt
+                    ? "stack overflow: push crossed the lower stack boundary"
+                    : "stack access outside configured stack boundaries";
+                return;
+            }
+        }
         if (addr < 0 || addr >= static_cast<int>(m.memory.size())) {
             L.fault = pcause::MEM_ADDRESS;
             L.faultMsg = "memory address out of range: " + std::to_string(addr);

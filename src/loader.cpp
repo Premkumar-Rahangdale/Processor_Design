@@ -1,3 +1,4 @@
+#include "../include/stack_preprocessor.hpp"
 #pragma once
 #include <cctype>
 #include <fstream>
@@ -56,6 +57,8 @@ public:
         }
         in.close();
 
+        program = StackPreprocessor::expand(program);
+        
         ofstream out("tests/t_asmblr.txt");
 
         for (const string &ins : program)

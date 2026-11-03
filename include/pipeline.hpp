@@ -38,6 +38,10 @@ namespace pcause {
     constexpr int ILLEGAL_OPCODE = 1;
     constexpr int DIV_BY_ZERO = 2;
     constexpr int MEM_ADDRESS = 3;
+    constexpr int STACK_OVERFLOW = 4;
+    constexpr int STACK_UNDERFLOW = 5;
+    constexpr int STACK_POINTER_CORRUPTION = 6;
+    constexpr int STACK_ADDRESS_VIOLATION = 7;
 }
 
 // The contents of one pipeline stage (the pipeline register in front of it).

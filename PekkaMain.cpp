@@ -7,6 +7,9 @@
 
 #include "include/isa.hpp"
 #include "include/MachineState.hpp"
+#include "include/stack_preprocessor.hpp"
+#include "include/stack_safety.hpp"
+#include "include/stack_visualizer.hpp"
 #include "src/assembler.cpp"
 #include "src/disassembler.cpp"
 #include "include/pipeline6stage.hpp"

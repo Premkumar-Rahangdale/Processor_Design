@@ -238,6 +238,7 @@ private:
         cout << "  " << CYAN << "first <n>" << RESET << "     restart from the first instruction and execute n instructions\n";
         cout << "  " << CYAN << "registers" << RESET << "     show all registers and flags\n";
         cout << "  " << CYAN << "memory" << RESET << "        show every memory location that holds data (non-zero)\n";
+        cout << "  " << CYAN << "stack" << RESET << "         display stack memory frame\n";
         cout << "  " << CYAN << "state" << RESET << "         show pc, next instruction and flags\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
         cout << "  " << CYAN << "exit" << RESET << "          leave debug mode\n";
@@ -273,6 +274,12 @@ private:
         cout << "pc = " << current_pc() << "    executed: " << pipeline.instructionsExecuted() << "    clocks: " << pipeline.cycles()
              << "    flags: Z=" << machine.zero << " N=" << machine.neg << " O=" << machine.over << " C=" << machine.carry << "\n";
         show_next();
+    }
+
+    void cmd_stack()
+    {
+        StackMemoryVisualizer visualizer(machine, 3072, 4095);
+        visualizer.render(std::cout, 16);
     }
 
 public:
@@ -336,6 +343,8 @@ public:
                     execute(n);
                 }
             }
+            else if (cmd == "stack")
+                cmd_stack();
             else if (cmd == "registers")
                 cmd_registers();
             else if (cmd == "memory")
