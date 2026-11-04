@@ -170,8 +170,12 @@ namespace mcause {
     constexpr uint32_t ILLEGAL_OPCODE = 1;
     constexpr uint32_t DIV_BY_ZERO    = 2;
     constexpr uint32_t MEM_ADDRESS    = 3;   // data address outside data memory
-    constexpr uint32_t STACK_BOUNDS   = 4;   // reserved for the stack-protection phase
-    constexpr uint32_t ARITH_OVERFLOW = 5;   // reserved
+    constexpr uint32_t STACK_OVERFLOW = 4;
+    constexpr uint32_t STACK_UNDERFLOW = 5;
+    constexpr uint32_t STACK_POINTER_CORRUPTION = 6;
+    constexpr uint32_t STACK_ADDRESS_VIOLATION = 7;
+    constexpr uint32_t STACK_BOUNDS = STACK_OVERFLOW; // compatibility alias
+    constexpr uint32_t ARITH_OVERFLOW = 8;   // reserved
 }
 
 // ---------------------------------------------------------------------------

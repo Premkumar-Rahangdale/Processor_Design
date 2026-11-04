@@ -129,6 +129,7 @@ void MicroControlUnit::run(MachineState& machine) {
     if (!loaded_) throw std::logic_error("no microprogram loaded in the control memory");
 
     machine.reset();                                // registers, memory, flags, pc = 0; instrMemory is kept
+    machine.Reg[2] = 4096;                          // same empty, full-descending stack as the pipeline
     MicroDatapath dp(machine);
 
     instructions_ = microInstrs_ = 0;

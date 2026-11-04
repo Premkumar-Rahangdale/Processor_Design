@@ -278,7 +278,7 @@ private:
 
     void cmd_stack()
     {
-        StackMemoryVisualizer visualizer(machine, 3072, 4095);
+        StackMemoryVisualizer visualizer(machine);
         visualizer.render(std::cout, 16);
     }
 

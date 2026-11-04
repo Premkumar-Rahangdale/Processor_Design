@@ -138,7 +138,14 @@ void MicroDatapath::runUnit(uint16_t args) {
             if (op == 1) {                          // <read>
                 regs_[mdIdx(MReg::REG_VAL)] = (idx == 0) ? 0u : static_cast<uint32_t>(m_.Reg[idx]);
             } else if (op == 2) {                   // <write>
-                if (idx != 0) m_.Reg[idx] = static_cast<int>(regs_[mdIdx(MReg::REG_DATA)]);
+                if (idx != 0) {
+                    const int value = static_cast<int>(regs_[mdIdx(MReg::REG_DATA)]);
+                    if (idx == 2 && (value < 3072 || value > 4096)) {
+                        raise(value < 3072 ? mcause::STACK_OVERFLOW : mcause::STACK_POINTER_CORRUPTION);
+                    } else {
+                        m_.Reg[idx] = value;
+                    }
+                }
             } else {
                 throw std::logic_error("unknown register-file operation");
             }
@@ -148,6 +155,16 @@ void MicroDatapath::runUnit(uint16_t args) {
         case margs::UNIT_MEM: {                     // data memory, word addressed
             const int32_t addr = static_cast<int32_t>(regs_[mdIdx(MReg::MAR)]);
             if (op != 1 && op != 2) throw std::logic_error("unknown memory operation");
+            if (regs_[mdIdx(MReg::RS1)] == 2) {      // accesses through SP must stay in the reserved stack region
+                if (op == 1 && addr == 4096) {
+                    raise(mcause::STACK_UNDERFLOW);
+                    break;
+                }
+                if (addr < 3072 || addr > 4095) {
+                    raise(op == 2 ? mcause::STACK_OVERFLOW : mcause::STACK_ADDRESS_VIOLATION);
+                    break;
+                }
+            }
             if (addr < 0 || addr >= static_cast<int32_t>(m_.memory.size())) {
                 raise(mcause::MEM_ADDRESS);         // the access does not happen
                 break;

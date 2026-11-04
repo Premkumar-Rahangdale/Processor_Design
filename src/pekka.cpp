@@ -411,10 +411,10 @@ private:
              << (instr ? double(unit.cycles()) / double(instr) : 0.0) << RESET << "\n";
         cout << defaultfloat;
 
-        // compare the final state (r2 is left out: only the pipeline initialises the stack pointer)
+        // compare the complete architectural state, including the stack pointer
         bool same = true;
         for (size_t i = 0; i < machine.Reg.size(); i++)
-            if (i != 2 && machine.Reg[i] != micro.Reg[i])
+            if (machine.Reg[i] != micro.Reg[i])
                 same = false;
         if (machine.memory != micro.memory)
             same = false;
