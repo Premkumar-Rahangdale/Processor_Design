@@ -256,6 +256,10 @@ void Pipeline::decode(Latch& L) {
     L.imm    = signExtend(field(L.raw, 16, 16), 16);
     L.offset = signExtend(field(L.raw, 5, 27), 27);          // branches only
     L.dest   = L.sig.writesReg() ? (L.sig.isCall ? kRa : L.rd) : 0;
+
+    // add/sub/mul/div in register form on two float registers (r26..r31) run on the FPU
+    L.sig.isFloat = (L.sig.isAdd || L.sig.isSub || L.sig.isMul || L.sig.isDiv)
+                    && !L.sig.isImm && isFloatReg(L.rs1) && isFloatReg(L.rs2);
 }
 
 // Registers an instruction reads (r0 is never a hazard).

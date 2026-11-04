@@ -210,6 +210,16 @@ void MicroDatapath::aluOp(uint16_t args) {
         default: throw std::logic_error("unknown ALU operation");
     }
 
+    // Same rule as Pipeline::decode: add/sub/mul/div in register form on two float registers (r26..r31)
+    // run on the FPU. ld/st also reach the ALU as <add> (address = base + offset), so they are excluded
+    // by opcode: a float register used as a base address is still an integer.
+    const uint32_t opc = opcode();
+    const bool isLdSt = (opc == 18 || opc == 19);          // ISA opcodes of ld and st
+    cs.isFloat = (cs.isAdd || cs.isSub || cs.isMul || cs.isDiv) && !isLdSt &&
+                 regs_[mdIdx(MReg::I)] == 0 &&
+                 isFloatReg(static_cast<int>(regs_[mdIdx(MReg::RS1)])) &&
+                 isFloatReg(static_cast<int>(regs_[mdIdx(MReg::RS2)]));
+
     const ALUResult r = alu_.execute(cs, static_cast<int32_t>(regs_[mdIdx(MReg::A)]),
                                          static_cast<int32_t>(regs_[mdIdx(MReg::B)]));
     if (r.divByZero) {                              // no result is produced

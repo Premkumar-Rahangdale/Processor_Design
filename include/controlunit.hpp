@@ -33,6 +33,10 @@ struct controlsignals{
     bool isCall=false;
     bool isRet=false;
 
+    // Not produced by the decoder: set after decode (Pipeline::decode / MicroDatapath::aluOp) when an
+    // add/sub/mul/div reads two float registers (see isFloatReg() in alu.hpp). Makes the ALU use its FPU.
+    bool isFloat=false;
+
 
     bool readsRs1() const {
         return isAdd || isSub || isMul || isDiv || isMod || isCmp || isAnd || isOR || isXor || isLsl || isLsr || isAsr || isLd || isSt;
