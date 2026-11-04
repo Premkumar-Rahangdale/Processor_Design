@@ -19,8 +19,9 @@ using namespace std;
 // Include this file after those (see PekkaMain.cpp).
 //
 // Commands:  start | load | assemble | disassemble | debug | execute | help | exit
-// Options:   pipeline <4|6> | control <hardwired|horizontal|vertical> | forwarding <on|off> |
-//            predictor <none|2bit> | config
+// Options:   config
+// 'start' asks for the number of pipeline stages (4|6) and the control unit (hardwired|horizontal|vertical)
+// Fixed:     data hazards use forwarding and branches use the 2-bit predictor (not selectable)
 class Pekka
 {
 private:
@@ -36,8 +37,8 @@ private:
     // processor configuration (used by 'execute' and 'debug')
     int stages = 6;                 // 4 or 6 pipeline stages
     int control = 0;                // 0 hardwired, 1 horizontal microprogram, 2 vertical microprogram
-    bool forwarding = false;        // data hazards: false = stalls only, true = forwarding
-    bool predictor = false;         // branch prediction: false = predict not taken, true = 2-bit predictor + BTB
+    const bool forwarding = true;   // data hazards: results are always forwarded
+    const bool predictor = true;    // branch prediction: always the 2-bit predictor + BTB
     HorizontalMicroControlUnit horizontal;
     VerticalMicroControlUnit vertical;
 
@@ -156,65 +157,29 @@ private:
         cout << "  branches    " << CYAN << (predictor ? "2-bit predictor with branch target buffer" : "predict not taken") << RESET << "\n";
     }
 
-    void cmd_pipeline(const string &arg)
+    // Asks a question until the answer is one of `choices`. Returns the index of the choice, -1 on end of input.
+    int ask_choice(const string &question, const vector<string> &choices)
     {
-        if (arg == "4")
-            stages = 4;
-        else if (arg == "6")
-            stages = 6;
-        else
+        while (true)
         {
-            fail("usage: pipeline <4|6>   (now: " + to_string(stages) + ")");
-            return;
-        }
-        ok("pipeline: " + config_text());
-    }
+            cout << BOLD << question << RESET << " ";
+            for (size_t i = 0; i < choices.size(); i++)
+                cout << (i ? " | " : "[") << choices[i];
+            cout << "] " << flush;
 
-    void cmd_control(const string &arg)
-    {
-        if (arg == "hardwired")
-            control = 0;
-        else if (arg == "horizontal")
-            control = 1;
-        else if (arg == "vertical")
-            control = 2;
-        else
-        {
-            fail("usage: control <hardwired|horizontal|vertical>   (now: " + string(control == 0 ? "hardwired" : control == 1 ? "horizontal" : "vertical") + ")");
-            return;
+            string line;
+            if (!getline(cin, line))
+            {
+                cout << "\n";
+                return -1;
+            }
+            string answer = normalize(line);
+            for (size_t i = 0; i < choices.size(); i++)
+                if (answer == choices[i])
+                    return (int)i;
+            fail("please enter one of the listed options");
         }
-        ok("control unit: " + config_text());
     }
-
-    void cmd_forwarding(const string &arg)
-    {
-        if (arg == "on")
-            forwarding = true;
-        else if (arg == "off")
-            forwarding = false;
-        else
-        {
-            fail("usage: forwarding <on|off>   (now: " + string(forwarding ? "on" : "off") + ")");
-            return;
-        }
-        ok("data hazards: " + config_text());
-    }
-
-    void cmd_predictor(const string &arg)
-    {
-        if (arg == "2bit")
-            predictor = true;
-        else if (arg == "none")
-            predictor = false;
-        else
-        {
-            fail("usage: predictor <none|2bit>   (now: " + string(predictor ? "2bit" : "none") + ")");
-            return;
-        }
-        ok("branch prediction: " + config_text());
-    }
-
-    // ---------------------------------------------------------------- commands
 
     void cmd_help()
     {
@@ -225,10 +190,6 @@ private:
         cout << "  " << CYAN << "disassemble" << RESET << "   disassemble the machine code back into assembly\n";
         cout << "  " << CYAN << "debug" << RESET << "         enter debug mode\n";
         cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the configured pipeline and show the statistics\n";
-        cout << "  " << CYAN << "pipeline" << RESET << " <4|6>  choose the number of pipeline stages\n";
-        cout << "  " << CYAN << "control" << RESET << " <hardwired|horizontal|vertical>  choose the control unit\n";
-        cout << "  " << CYAN << "forwarding" << RESET << " <on|off>  data hazards: forward results or stall only\n";
-        cout << "  " << CYAN << "predictor" << RESET << " <none|2bit>  branch prediction: predict not taken or 2-bit predictor\n";
         cout << "  " << CYAN << "config" << RESET << "        show the processor configuration\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
         cout << "  " << CYAN << "exit" << RESET << "          shut down and leave P.E.K.K.A.\n";
@@ -241,6 +202,17 @@ private:
             warn("processor is already running");
             return;
         }
+
+        // the processor is configured before it is powered on
+        int stageChoice = ask_choice("pipeline stages?", {"4", "6"});
+        if (stageChoice < 0)
+            return;
+        int controlChoice = ask_choice("control unit?", {"hardwired", "horizontal", "vertical"});
+        if (controlChoice < 0)
+            return;
+        stages = stageChoice == 0 ? 4 : 6;
+        control = controlChoice;
+
         machine.reset();   // registers, data memory, flags, pc
         forget_program();
         started = true;
@@ -399,6 +371,59 @@ private:
         else
             ok("execution finished");
         print_statistics(*pipeline);
+
+        if (control != 0)
+            run_micro_engine();
+    }
+
+    // With a microprogrammed control unit the microprogram is also run on its own datapath
+    // (MicroControlUnit::run: fetch / decode / execute as micro-operations, no pipeline). That shows the
+    // cost of executing the program micro-instruction by micro-instruction, and the final state is
+    // compared with the pipeline's to check that the control memory and the pipeline agree.
+    void run_micro_engine()
+    {
+        MicroControlUnit &unit = control == 1 ? static_cast<MicroControlUnit &>(horizontal)
+                                              : static_cast<MicroControlUnit &>(vertical);
+        MachineState micro = machine;   // keeps instrMemory and labels; run() resets the rest
+        try
+        {
+            unit.run(micro);
+        }
+        catch (const exception &e)
+        {
+            fail(string("micro engine failed: ") + e.what());
+            return;
+        }
+
+        cout << "\n";
+        info("microprogram run on the " + string(unit.name()) + " control unit (" + to_string(unit.wordBits()) + "-bit words, " +
+             to_string(unit.wordsUsed()) + " control-memory words)");
+        if (unit.hitInstructionLimit())
+            warn("stopped at the instruction limit");
+        else if (unit.faulted())
+            fail("stopped by an exception (cause " + to_string(unit.faultCause()) + ")");
+        else
+            ok("program finished");
+
+        long instr = unit.instructionsExecuted();
+        cout << "  instructions " << BOLD << instr << RESET << "    micro-instructions " << BOLD << unit.microInstructionsExecuted() << RESET
+             << "    clocks " << BOLD << unit.cycles() << RESET << "    CPI " << BOLD << fixed << setprecision(2)
+             << (instr ? double(unit.cycles()) / double(instr) : 0.0) << RESET << "\n";
+        cout << defaultfloat;
+
+        // compare the final state (r2 is left out: only the pipeline initialises the stack pointer)
+        bool same = true;
+        for (size_t i = 0; i < machine.Reg.size(); i++)
+            if (i != 2 && machine.Reg[i] != micro.Reg[i])
+                same = false;
+        if (machine.memory != micro.memory)
+            same = false;
+        if (machine.zero != micro.zero || machine.neg != micro.neg || machine.over != micro.over || machine.carry != micro.carry)
+            same = false;
+        if (same)
+            ok("final registers, memory and flags match the pipeline run");
+        else
+            warn("final state differs from the pipeline run (stack instructions and exceptions are handled differently by the two engines)");
     }
 
     void print_statistics(const Pipeline &p)
@@ -437,10 +462,9 @@ public:
                 istringstream words(cmd);
                 words >> cmd >> arg >> extra;
             }
-            bool takes_arg = (cmd == "pipeline" || cmd == "control" || cmd == "forwarding" || cmd == "predictor");
-            if (!extra.empty() || (!arg.empty() && !takes_arg))
+            if (!extra.empty() || !arg.empty())
             {
-                fail("'" + cmd + "' takes " + (takes_arg ? "one argument" : "no arguments") + "  (type 'help')");
+                fail("'" + cmd + "' takes no arguments  (type 'help')");
                 continue;
             }
 
@@ -456,14 +480,6 @@ public:
                 cmd_debug();
             else if (cmd == "execute")
                 cmd_execute();
-            else if (cmd == "pipeline")
-                cmd_pipeline(arg);
-            else if (cmd == "control")
-                cmd_control(arg);
-            else if (cmd == "forwarding")
-                cmd_forwarding(arg);
-            else if (cmd == "predictor")
-                cmd_predictor(arg);
             else if (cmd == "config")
                 cmd_config();
             else if (cmd == "help")
