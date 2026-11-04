@@ -18,7 +18,7 @@ using namespace std;
 //   vertical control units, PekkaDebugger (and MachineState).
 // Include this file after those (see PekkaMain.cpp).
 //
-// Commands:  start | load | assemble | disassemble | debug | execute | help | exit
+// Commands:  start | load | assemble | disassemble | debug | execute | clear | help | exit
 // Options:   config
 // 'start' asks for the number of pipeline stages (4|6) and the control unit (hardwired|horizontal|vertical)
 // Fixed:     data hazards use forwarding and branches use the 2-bit predictor (not selectable)
@@ -57,7 +57,7 @@ private:
     void warn(const string &msg) { cout << YELLOW << "[WARN] " << RESET << msg << "\n"; }
     void info(const string &msg) { cout << CYAN << "[INFO] " << RESET << msg << "\n"; }
 
-    void clear_screen() { cout << "\033[2J\033[H"; }
+    void clear_screen() { clear_terminal(); }   // defined in PekkaMain.cpp
 
 public:
     Pekka()
@@ -191,6 +191,7 @@ private:
         cout << "  " << CYAN << "debug" << RESET << "         enter debug mode\n";
         cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the configured pipeline and show the statistics\n";
         cout << "  " << CYAN << "config" << RESET << "        show the processor configuration\n";
+        cout << "  " << CYAN << "clear" << RESET << "         clear the terminal\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
         cout << "  " << CYAN << "exit" << RESET << "          shut down and leave P.E.K.K.A.\n";
     }
@@ -482,6 +483,8 @@ public:
                 cmd_execute();
             else if (cmd == "config")
                 cmd_config();
+            else if (cmd == "clear")
+                clear_terminal();
             else if (cmd == "help")
                 cmd_help();
             else if (cmd == "exit")

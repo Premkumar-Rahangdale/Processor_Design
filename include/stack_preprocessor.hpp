@@ -77,7 +77,7 @@ public:
                 break;
             }
         }
-        std::string endLabel = ".__pekka_stack_program_end";
+        std::string endLabel = ".end";
         while (std::any_of(code.begin(), code.end(), [&](const std::string& line) {
             return labelOnLine(line) == endLabel;
         })) endLabel += "_";

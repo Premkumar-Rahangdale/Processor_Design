@@ -16,7 +16,7 @@ using namespace std;
 // the pipeline it is given (4- or 6-stage, begin / step / stepN) and shows what each step changed.
 // Include this file after pipeline.cpp and pipeline6stage.cpp and before pekka.cpp.
 //
-// Commands:  step [n] | first <n> | registers | memory | state | help | exit
+// Commands:  step [n] | first <n> | registers | memory | state | clear | help | exit
 class PekkaDebugger
 {
 private:
@@ -240,6 +240,7 @@ private:
         cout << "  " << CYAN << "memory" << RESET << "        show every memory location that holds data (non-zero)\n";
         cout << "  " << CYAN << "stack" << RESET << "         display stack memory frame\n";
         cout << "  " << CYAN << "state" << RESET << "         show pc, next instruction and flags\n";
+        cout << "  " << CYAN << "clear" << RESET << "         clear the terminal\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
         cout << "  " << CYAN << "exit" << RESET << "          leave debug mode\n";
     }
@@ -351,6 +352,8 @@ public:
                 cmd_memory();
             else if (cmd == "state")
                 cmd_state();
+            else if (cmd == "clear")
+                clear_terminal();
             else if (cmd == "help")
                 cmd_help();
             else if (cmd == "exit")

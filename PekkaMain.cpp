@@ -5,6 +5,21 @@
 #include <windows.h>
 #endif
 
+#include <cstdlib>
+#include <iostream>
+
+// Wipes the terminal like cmd's "cls": the screen AND the scrollback, so the old output
+// cannot be scrolled back to. Used by the 'clear' command of P.E.K.K.A. and of the debugger.
+static void clear_terminal()
+{
+    std::cout << std::flush;
+#ifdef _WIN32
+    std::system("cls");
+#else
+    std::cout << "\033[3J\033[2J\033[H" << std::flush;   // scrollback, screen, cursor home
+#endif
+}
+
 #include "include/isa.hpp"
 #include "include/MachineState.hpp"
 #include "include/stack_preprocessor.hpp"
