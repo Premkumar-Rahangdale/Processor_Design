@@ -351,6 +351,12 @@ private:
             return;
         }
 
+        if (control != 0)
+        {
+            execute_microprogrammed();   // only the chosen micro control unit's result is shown
+            return;
+        }
+
         info("executing on the " + config_text());
         unique_ptr<Pipeline> pipeline = make_pipeline();
         try
@@ -372,59 +378,44 @@ private:
         else
             ok("execution finished");
         print_statistics(*pipeline);
-
-        if (control != 0)
-            run_micro_engine();
     }
 
-    // With a microprogrammed control unit the microprogram is also run on its own datapath
-    // (MicroControlUnit::run: fetch / decode / execute as micro-operations, no pipeline). That shows the
-    // cost of executing the program micro-instruction by micro-instruction, and the final state is
-    // compared with the pipeline's to check that the control memory and the pipeline agree.
-    void run_micro_engine()
+    // Horizontal or vertical control: the program is executed by the chosen micro control unit
+    // (MicroControlUnit::run: fetch / decode / execute as micro-operations, one micro-instruction
+    // per clock, no pipeline). Only this unit's result is printed.
+    void execute_microprogrammed()
     {
         MicroControlUnit &unit = control == 1 ? static_cast<MicroControlUnit &>(horizontal)
                                               : static_cast<MicroControlUnit &>(vertical);
-        MachineState micro = machine;   // keeps instrMemory and labels; run() resets the rest
+        info("executing on the " + string(unit.name()) + " microprogrammed control unit (" + to_string(unit.wordBits()) +
+             "-bit words, " + to_string(unit.wordsUsed()) + " control-memory words)");
         try
         {
-            unit.run(micro);
+            unit.run(machine);   // keeps instrMemory and labels; run() resets the rest
         }
         catch (const exception &e)
         {
-            fail(string("micro engine failed: ") + e.what());
+            fail(string("execution failed: ") + e.what());
+            return;
+        }
+        catch (...)
+        {
+            fail("execution failed");
             return;
         }
 
-        cout << "\n";
-        info("microprogram run on the " + string(unit.name()) + " control unit (" + to_string(unit.wordBits()) + "-bit words, " +
-             to_string(unit.wordsUsed()) + " control-memory words)");
         if (unit.hitInstructionLimit())
             warn("stopped at the instruction limit");
         else if (unit.faulted())
-            fail("stopped by an exception (cause " + to_string(unit.faultCause()) + ")");
+            fail("stopped by an exception (cause " + to_string(unit.faultCause()) + ", R4 = cause, R5 = index of the faulting instruction)");
         else
-            ok("program finished");
+            ok("execution finished");
 
-        long instr = unit.instructionsExecuted();
+        const long instr = unit.instructionsExecuted();
         cout << "  instructions " << BOLD << instr << RESET << "    micro-instructions " << BOLD << unit.microInstructionsExecuted() << RESET
              << "    clocks " << BOLD << unit.cycles() << RESET << "    CPI " << BOLD << fixed << setprecision(2)
              << (instr ? double(unit.cycles()) / double(instr) : 0.0) << RESET << "\n";
         cout << defaultfloat;
-
-        // compare the complete architectural state, including the stack pointer
-        bool same = true;
-        for (size_t i = 0; i < machine.Reg.size(); i++)
-            if (machine.Reg[i] != micro.Reg[i])
-                same = false;
-        if (machine.memory != micro.memory)
-            same = false;
-        if (machine.zero != micro.zero || machine.neg != micro.neg || machine.over != micro.over || machine.carry != micro.carry)
-            same = false;
-        if (same)
-            ok("final registers, memory and flags match the pipeline run");
-        else
-            warn("final state differs from the pipeline run (stack instructions and exceptions are handled differently by the two engines)");
     }
 
     void print_statistics(const Pipeline &p)
