@@ -67,6 +67,8 @@ Han-Carlson is Kogge-Stone on the odd bits only, plus one level at each end: lev
 
 The carry-in is folded into bit 0, and `sum[i] = p[i] XOR (carry into bit i)`. Subtraction is `A + ~B + 1`. The adder is written for any width up to 64 bits.
 
+This is the only carry-propagate adder in the ALU; there is no second adder design. The widths in use are 25 (rounding increment), 26 and 28 (FP near and far paths), 32 (integer datapath), 33 (divider remainder) and 48 (FP multiplier and divider). At 48 bits the network has 7 levels (1 + 5 + 1).
+
 **Flags**
 
 | Flag | Rule |
@@ -151,12 +153,12 @@ Five layers shift by 1, 2, 4, 8, 16 or pass through, according to one bit of the
 
 Both paths pass a 27-bit word (24 significand bits, then guard, round, sticky) and an exponent to the shared rounding stage. Subnormals are treated as exponent 1 with no hidden bit.
 
-### 4.3 Multiplier: Booth radix-4 + 4:2 compressors + Kogge-Stone
+### 4.3 Multiplier: Booth radix-4 + 4:2 compressors + Han-Carlson
 
 - **Sign** = `sa XOR sb`; **exponent** = `ea + eb − 127` (+1 if the product ≥ 2); subnormal inputs are normalised first with a leading-zero count.
 - **Booth radix-4** recodes the 24-bit multiplier into **13 partial products**. The `+1` of a negative row goes into the empty low columns of the next row.
 - **4:2 compressor tree:** `13 → 7 → 4 → 2` rows (3 levels). A 4:2 compressor is two chained full adders with a non-rippling horizontal carry.
-- **One 48-bit Kogge-Stone adder** (6 levels).
+- **One 48-bit Han-Carlson adder** (7 levels): the same shared prefix adder as the integer datapath (§3.1), not a separate design.
 - **Rounding is merged into that add.** Whether the product is ≥ 2^47 is known only after the add, so `P + 2^23` and `P + 2^22` are both prepared and the MSB of `P` selects one. The half-ulp bit rides in the tree as an extra row (14 rows, still 3 levels). A tie clears the result LSB (round to even).
 - **Slow path:** if the exponent could leave `1…254`, the exact product is shifted with a sticky bit and rounded by the shared rounding stage (an extra cycle in hardware).
 
@@ -169,12 +171,12 @@ Both paths pass a 27-bit word (24 significand bits, then guard, round, sticky) a
 - **Rounding merged into the correction:** the three candidates `(Qf + 1) >> 1` for `Qf = Qt−1, Qt, Qt+1` are ready before the remainder, which only selects one. An exact tie clears the LSB.
 - **Slow path:** same as the multiplier.
 
-A division uses four significand multiplies (`x·K`, `y·K`, `N0·eps`, `Qt·my`) through the same Booth + 4:2 multiplier as `fmul`.
+A division uses four significand multiplies (`x·K`, `y·K`, `N0·eps`, `Qt·my`) through the same Booth + 4:2 multiplier as `fmul`. Every 48-bit add in it (the four product adds, `eps`, `N1`, `R0`, `R0 + my`, `R0 − my`) goes through the shared Han-Carlson adder.
 
 ### 4.5 Shared pieces
 
 - **Rounding and packing:** rounds the 27-bit word to nearest even (the `+1` uses the 25-bit adder), bumps the exponent on a carry-out, returns ±Inf for exponent ≥ 255, and stores a result without a hidden bit as a subnormal.
-- **Kogge-Stone adder:** used only by `fmul` and `fdiv`. `ceil(log2(width))` levels, so 6 at 48 bits against 7 for Han-Carlson.
+- **Carry-propagate adder:** the FPU has none of its own. Rounding increments, both adder paths, and the 48-bit adds of `fmul` and `fdiv` all use the integer Han-Carlson adder, at the widths listed in §3.1.
 - **Leading-zero count:** a priority encoder that normalises subnormal inputs and the near-path result.
 
 ---
