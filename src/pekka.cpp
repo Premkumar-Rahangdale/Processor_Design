@@ -188,7 +188,10 @@ private:
         cout << "  " << CYAN << "load" << RESET << "          load the assembly program (comments and extra spaces removed)\n";
         cout << "  " << CYAN << "assemble" << RESET << "      assemble the loaded program into machine code\n";
         cout << "  " << CYAN << "disassemble" << RESET << "   disassemble the machine code back into assembly\n";
-        cout << "  " << CYAN << "debug" << RESET << "         enter debug mode\n";
+        cout << "  " << CYAN << "debug" << RESET << "         enter debug mode (steps the pipeline)\n";
+        cout << "  " << CYAN << "microdebug" << RESET << "    step the micro control unit one micro-instruction at a time and watch the micro-PC\n"
+             << "                (horizontal or vertical control only)\n";
+        cout << "  " << CYAN << "microcode" << RESET << "     list the control memory of the configured micro control unit\n";
         cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the configured pipeline and show the statistics\n";
         cout << "  " << CYAN << "config" << RESET << "        show the processor configuration\n";
         cout << "  " << CYAN << "clear" << RESET << "         clear the terminal\n";
@@ -336,9 +339,52 @@ private:
         }
         unique_ptr<Pipeline> pipeline = make_pipeline();
         info("debugging on the " + config_text());
+        if (control != 0)
+            info("to step the micro-PC of the " + control_name() + " control unit use 'microdebug'");
         PekkaDebugger debugger(machine, *pipeline);
         debugger.run();
         info("left debug mode");
+    }
+
+    // The micro control unit selected by the configuration, or nullptr for hardwired control.
+    MicroControlUnit *micro_unit()
+    {
+        return control == 1 ? static_cast<MicroControlUnit *>(&horizontal) : control == 2 ? static_cast<MicroControlUnit *>(&vertical) : nullptr;
+    }
+
+    // Micro-PC debugger: one micro-instruction per step on the unit's own data path (no pipeline).
+    void cmd_microdebug()
+    {
+        if (!need_started())
+            return;
+        MicroControlUnit *unit = micro_unit();
+        if (!unit)
+        {
+            fail("hardwired control has no micro-PC - start the processor with 'horizontal' or 'vertical' control");
+            return;
+        }
+        if (!assembled)
+        {
+            fail("no machine code - use 'assemble' first");
+            return;
+        }
+        PekkaMicroDebugger debugger(machine, *unit);
+        debugger.run();
+        info("left micro debug mode");
+    }
+
+    // Control-memory listing of the configured micro control unit.
+    void cmd_microcode()
+    {
+        if (!need_started())
+            return;
+        MicroControlUnit *unit = micro_unit();
+        if (!unit)
+        {
+            fail("hardwired control has no control memory - start the processor with 'horizontal' or 'vertical' control");
+            return;
+        }
+        cout << unit->listing();
     }
 
     void cmd_execute()
@@ -470,6 +516,10 @@ public:
                 cmd_disassemble();
             else if (cmd == "debug")
                 cmd_debug();
+            else if (cmd == "microdebug")
+                cmd_microdebug();
+            else if (cmd == "microcode")
+                cmd_microcode();
             else if (cmd == "execute")
                 cmd_execute();
             else if (cmd == "config")

@@ -126,6 +126,8 @@ The processor is configured once, when it is powered on.
 | `config` | show the configuration |
 | `execute` | run the program on the configured pipeline and print instructions, clocks, CPI, data-hazard stalls, branches, mispredictions (and accuracy), squashed instructions and control-path bubbles |
 | `debug` | step the same configuration (`step`, `step <n>`, `first <n>`, `registers`, `memory`, `stack`, `state`) |
+| `microdebug` | with a horizontal or vertical control unit: step the micro control unit one micro-instruction at a time and show the micro-PC (see `docs/Microcode.MD`) |
+| `microcode` | list the control memory of the configured micro control unit |
 
 The CLI always uses forwarding and the 2-bit predictor with a BTB; they are not selectable there. The engine itself still supports stall-only mode, `writeThrough` and predict-not-taken through `forwarding`, `writeThrough` and `predictor` for code that drives `Pipeline` directly.
 

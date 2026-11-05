@@ -125,71 +125,124 @@ controlsignals MicroControlUnit::analyseRoutine(int startAddr) const {
     return c;
 }
 
-void MicroControlUnit::run(MachineState& machine) {
+void MicroControlUnit::begin(MachineState& machine) {
     if (!loaded_) throw std::logic_error("no microprogram loaded in the control memory");
 
     machine.reset();                                // registers, memory, flags, pc = 0; instrMemory is kept
     machine.Reg[2] = 4096;                          // same empty, full-descending stack as the pipeline
-    MicroDatapath dp(machine);
+    dp_ = std::make_unique<MicroDatapath>(machine);
 
     instructions_ = microInstrs_ = 0;
     ended_ = halted_ = capped_ = false;
     cause_ = 0;
 
-    const int bubbles = fetchStages() - 1;
-    cycles_ = bubbles;                              // the sequencer fills before the first execute
+    bubbles_ = fetchStages() - 1;
+    cycles_ = bubbles_;                             // the sequencer fills before the first execute
 
-    uint16_t upc = image_.beginAddr;
-    while (true) {
-        if (upc >= image_.words.size()) throw std::logic_error("micro-pc left the microprogram");
+    upc_ = image_.beginAddr;
+    active_ = true;
+}
 
-        const MicroSignals s = fetch(upc);
-        const bool isMBranch = dp.execute(s);
-        ++microInstrs_;
-        ++cycles_;
+bool MicroControlUnit::stepMicro(MicroStep* info) {
+    if (!active_ || !dp_) return false;
+    MicroDatapath& dp = *dp_;
 
-        // micro-fetch multiplexer (book Table 8.9)
-        uint16_t next = static_cast<uint16_t>(upc + 1);
-        bool redirect = false;
-        switch (s.fetch) {
-            case kFetchBranch:
+    if (upc_ < 0 || upc_ >= static_cast<int>(image_.words.size())) throw std::logic_error("micro-pc left the microprogram");
+
+    const int upc = upc_;
+    const MicroSignals s = fetch(upc);
+    const bool isMBranch = dp.execute(s);
+    ++microInstrs_;
+    ++cycles_;
+
+    // micro-fetch multiplexer (book Table 8.9)
+    int next = upc + 1;
+    bool redirect = false;
+    bool newInstruction = false;
+    const char* mux = "next";
+    switch (s.fetch) {
+        case kFetchBranch:
+            next = s.target;
+            redirect = true;
+            mux = "branch";
+            break;
+        case kFetchSwitch: {                        // switch unit: opcode in ir -> start of its microroutine
+            const int a = image_.switchAddr[dp.opcode() & 31u];
+            if (a >= 0) {
+                next = a;
+                ++instructions_;
+                newInstruction = true;
+            } else {
+                dp.raise(mcause::ILLEGAL_OPCODE);
+            }
+            redirect = true;
+            mux = "switch";
+            break;
+        }
+        case kFetchCond:
+            if (isMBranch) {
                 next = s.target;
                 redirect = true;
-                break;
-            case kFetchSwitch: {                    // switch unit: opcode in ir -> start of its microroutine
-                const int a = image_.switchAddr[dp.opcode() & 31u];
-                if (a >= 0) {
-                    next = static_cast<uint16_t>(a);
-                    ++instructions_;
-                } else {
-                    dp.raise(mcause::ILLEGAL_OPCODE);
-                }
-                redirect = true;
-                break;
+                mux = "cond-taken";
+            } else {
+                mux = "cond-not-taken";
             }
-            case kFetchCond:
-                if (isMBranch) {
-                    next = s.target;
-                    redirect = true;
-                }
-                break;
-            default:
-                break;
-        }
-
-        if (dp.faultPending()) {                    // a unit raised an exception: enter the exception routine
-            dp.clearFault();
-            next = image_.exceptionAddr;
-            redirect = true;
-        }
-
-        if (dp.halted())       { halted_ = true; cause_ = dp.excCause(); break; }
-        if (dp.programEnded()) { ended_ = true; break; }
-        if (instructions_ >= kMaxInstructions) { capped_ = true; break; }
-
-        if (redirect) cycles_ += bubbles;
-        upc = next;
+            break;
+        default:
+            break;
     }
+
+    bool exception = false;
+    if (dp.faultPending()) {                        // a unit raised an exception: enter the exception routine
+        dp.clearFault();
+        next = image_.exceptionAddr;
+        redirect = true;
+        exception = true;
+        mux = "exception";
+    }
+
+    bool finished = false;
+    if (dp.halted())       { halted_ = true; cause_ = dp.excCause(); finished = true; }
+    else if (dp.programEnded()) { ended_ = true; finished = true; }
+    else if (instructions_ >= kMaxInstructions) { capped_ = true; finished = true; }
+
+    if (!finished) {
+        if (redirect) cycles_ += bubbles_;
+        upc_ = next;
+    } else {
+        active_ = false;
+    }
+
+    if (info) {
+        info->upc = upc;
+        info->instr = image_.words[static_cast<size_t>(upc)];
+        info->text = toText(info->instr);
+        info->word = wordText(upc);
+        info->signals = s;
+        info->isMBranch = isMBranch;
+        info->mux = mux;
+        info->nextUpc = next;
+        info->redirect = redirect;
+        info->newInstruction = newInstruction;
+        info->exception = exception;
+        info->cycles = cycles_;
+        info->finished = finished;
+    }
+    return true;
+}
+
+void MicroControlUnit::run(MachineState& machine) {
+    begin(machine);
+    while (stepMicro()) {}
+}
+
+std::string MicroControlUnit::describeAddress(int addr) const {
+    if (addr < 0 || addr >= static_cast<int>(image_.words.size())) return "?";
+    for (int a = addr; a >= 0; a--) {
+        const std::string& l = image_.words[static_cast<size_t>(a)].label;
+        if (!l.empty()) return a == addr ? l : l + "+" + std::to_string(addr - a);
+    }
+    return "+" + std::to_string(addr);
 }
 
 std::string MicroControlUnit::listing() const {

@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 #include "MachineState.hpp"
@@ -28,6 +29,23 @@
 //  execute are flushed: 1 bubble for horizontal, 2 for vertical. Starting up
 //  costs the same number of cycles.
 // ===========================================================================
+// What one micro-instruction did: the record stepMicro() hands to a micro-PC display.
+struct MicroStep {
+    int upc = 0;                    // micro-PC the micro-instruction was fetched from
+    MicroInstr instr;               // the symbolic micro-instruction (label, op, operands)
+    std::string text;               // toText(instr), e.g. "mmov A, regVal"
+    std::string word;               // the control word as stored (grouped by field)
+    MicroSignals signals;           // what the data path received this cycle
+    bool isMBranch = false;         // write bus == micro-immediate (the mbeq condition)
+    const char* mux = "next";       // micro-fetch mux: next | branch | switch | cond-taken | cond-not-taken | exception
+    int nextUpc = 0;                // micro-PC of the following micro-instruction
+    bool redirect = false;          // the fetch pipeline was flushed (bubbles added)
+    bool newInstruction = false;    // mswitch dispatched a legal opcode: a new instruction starts executing
+    bool exception = false;         // a unit raised an exception: nextUpc is the exception routine
+    long cycles = 0;                // clock count after this step (bubbles included)
+    bool finished = false;          // the run is over after this step (end, halt or instruction limit)
+};
+
 class MicroControlUnit {
 public:
     static constexpr long kMaxInstructions = 1000000;    // runaway guard, same as Pipeline6stage
@@ -40,7 +58,27 @@ public:
 
     // Reset the machine (instrMemory is kept) and run the program in
     // instrMemory to its end, an exception, or the instruction limit.
+    // Equivalent to begin() followed by stepMicro() until it returns false.
     void run(MachineState& machine);
+
+    // ---- micro-PC stepping (used by the CLI's micro debugger) ----
+    // begin():     reset the machine like run() does and put the micro-PC at the start of the
+    //              preamble; nothing is executed yet.
+    // stepMicro(): execute exactly ONE micro-instruction (one clock of the data path) and advance
+    //              the micro-PC through the micro-fetch multiplexer. Fills `info` when given.
+    //              Returns false (and does nothing) when no run is active; step.finished tells
+    //              whether this was the last micro-instruction.
+    void begin(MachineState& machine);
+    bool stepMicro(MicroStep* info = nullptr);
+    bool active() const { return active_; }              // begin() was called and the run is not over
+    int microPc() const { return upc_; }                 // address of the NEXT micro-instruction to execute
+    int beginAddress() const { return image_.beginAddr; }    // start of the preamble = instruction boundary
+    int exceptionAddress() const { return image_.exceptionAddr; }
+    const MicroInstr& microInstrAt(int addr) const { return image_.words.at(static_cast<size_t>(addr)); }
+    // Label that names an address: the nearest label at or before it, with the distance (".add+3").
+    std::string describeAddress(int addr) const;
+    // The data path of the current run (micro-registers); null before the first begin().
+    const MicroDatapath* datapath() const { return dp_.get(); }
 
     // ---- results of the last run ----
     long instructionsExecuted() const { return instructions_; }
@@ -89,6 +127,12 @@ private:
     long instructions_ = 0, microInstrs_ = 0, cycles_ = 0;
     bool ended_ = false, halted_ = false, capped_ = false;
     uint32_t cause_ = 0;
+
+    // state of a stepped run (begin / stepMicro)
+    std::unique_ptr<MicroDatapath> dp_;
+    int upc_ = 0;
+    int bubbles_ = 0;
+    bool active_ = false;
 };
 
 // ---------------------------------------------------------------------------

@@ -257,7 +257,38 @@ hcu.finishedNormally();  hcu.faulted();  hcu.faultCause();  hcu.hitInstructionLi
 std::string text = hcu.listing();      // control-store listing; builds text, prints nothing
 ```
 
-`run()` starts at the `.main` entry point (or 0) and prints nothing. Microcode can be replaced at run time by editing the `MicroProgram` (for example `opcodeLabel[17] = ""` makes `nop` illegal) and calling `load()` again.
+`run()` starts at the `.main` entry point (or 0) and prints nothing.
+
+`run()` is `begin()` followed by `stepMicro()` until it returns false. The two can be used directly to watch the micro-PC:
+
+```cpp
+hcu.begin(machine);                    // machine.reset(), SP = 4096, micro-PC at .begin; nothing executed yet
+MicroStep st;
+while (hcu.stepMicro(&st)) {           // ONE micro-instruction = one clock of the data path
+    // st.upc, st.text, st.word, st.mux, st.nextUpc, st.redirect, st.exception, st.cycles ...
+}
+hcu.microPc();  hcu.active();  hcu.datapath()->reg(MReg::A);   // state between steps
+```
+
+`MicroStep` records the micro-PC the micro-instruction came from, the micro-instruction and its encoded control word, the setting of the micro-fetch multiplexer (`next`, `branch`, `switch`, `cond-taken`, `cond-not-taken`, `exception`), the next micro-PC, whether the fetch pipeline was flushed, and the clock count. Microcode can be replaced at run time by editing the `MicroProgram` (for example `opcodeLabel[17] = ""` makes `nop` illegal) and calling `load()` again.
+
+### Micro-PC step display (CLI)
+
+With horizontal or vertical control, `microdebug` opens the micro debugger (`src/microdebugger.cpp`) on the configured unit; `microcode` prints its control memory. The debugger executes the program on the unit's own data path, one micro-instruction per step, and shows for each one the micro-PC (with its nearest label), the micro-instruction, the micro-fetch multiplexer decision and next micro-PC, the clock count (with the 1 or 2 bubbles of a redirect), the micro-registers that changed, and the registers / memory / flags that changed.
+
+| command | effect |
+|---|---|
+| `ustep [n]` | execute n micro-instructions (default 1) |
+| `step [n]` | execute n whole instructions (up to the next `.begin`) |
+| `run` | run to the end |
+| `restart` | reset the machine, micro-PC back to `.begin` |
+| `state` | micro-PC, next micro-instruction, current instruction, counters |
+| `uregs` | all micro-registers |
+| `registers`, `memory`, `stack` | architectural state |
+| `listing` | the control memory; the micro-PC is marked `=>` |
+| `words` | show / hide the encoded control word of every micro-instruction |
+
+An exception is visible as it happens: the faulting micro-instruction is marked `EXCEPTION`, the micro-PC jumps to `.exception`, and the routine's writes to R4 and R5 appear step by step.
 
 In the CLI (`execute` with a horizontal or vertical control unit) the program is run on the pipeline first, then on the unit's own data path. The CLI prints instructions, micro-instructions, clocks and CPI for the micro run, and checks that the final registers, memory and flags match the pipeline's.
 
@@ -270,4 +301,4 @@ Build: add `controlunit.cpp`, `alu.cpp` and the four `src/micro*.cpp` files to t
 - `add`, `sub` and `div` overflow is invisible (only `cmp` updates flags), so arithmetic overflow (cause 8) is never raised.
 - After an exception the machine stops; there is no handler dispatch.
 - The micro engine and the pipeline can differ on stack instructions and exceptions. The CLI warns when their final states differ.
-- There is no interactive micro-PC view; `listing()` and the counters are the hooks for the CLI.
+- The micro debugger has no breakpoints: it steps by micro-instruction or by instruction, or runs to the end.

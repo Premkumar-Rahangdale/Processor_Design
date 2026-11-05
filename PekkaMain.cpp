@@ -39,6 +39,7 @@ static void clear_terminal()
 #include "src/microcontrolunit.cpp"
 #include "src/loader.cpp"
 #include "src/debugger.cpp"
+#include "src/microdebugger.cpp"
 #include "src/pekka.cpp"
 
 using namespace std;
