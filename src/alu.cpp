@@ -429,35 +429,6 @@ ALU::CarrySave ALU::fpMantissaProduct(uint32_t a, uint32_t b, uint64_t inject) {
     return CarrySave{rows[0], rows[1]};
 }
 
-// Kogge-Stone parallel-prefix adder: every level merges each bit with the bit
-// d positions below (d = 1, 2, 4, ...), so ceil(log2(width)) levels in total.
-// Returns the low `width` bits of a + b + cin (cin folded into bit 0, as in prefixAdd).
-uint64_t ALU::koggeStoneAdd(uint64_t a, uint64_t b, int width, bool cin) {
-    bool p0[64] = {}, G[64] = {}, P[64] = {};
-    for (int i = 0; i < width; i++) {
-        const bool ai = (a >> i) & 1, bi = (b >> i) & 1;
-        G[i]  = ai & bi;
-        P[i]  = ai ^ bi;
-        p0[i] = P[i];
-    }
-    G[0] = G[0] | (p0[0] & cin);                                    // fold the carry-in into bit 0
-    for (int d = 1; d < width; d <<= 1) {                           // double-buffered: each level reads old values
-        bool nG[64], nP[64];
-        for (int i = 0; i < width; i++) { nG[i] = G[i]; nP[i] = P[i]; }
-        for (int i = d; i < width; i++) {
-            nG[i] = G[i] | (P[i] & G[i - d]);
-            nP[i] = P[i] & P[i - d];
-        }
-        for (int i = 0; i < width; i++) { G[i] = nG[i]; P[i] = nP[i]; }
-    }
-    uint64_t sum = 0;
-    for (int i = 0; i < width; i++) {
-        const bool c = (i == 0) ? cin : G[i - 1];                   // carry into bit i
-        if (p0[i] ^ c) sum |= (1ull << i);
-    }
-    return sum;
-}
-
 uint32_t ALU::fmul(uint32_t a, uint32_t b) {
     const uint32_t magA = a & 0x7FFFFFFFu, magB = b & 0x7FFFFFFFu;
     const bool sign = ((a ^ b) >> 31) != 0;
@@ -479,7 +450,7 @@ uint32_t ALU::fmul(uint32_t a, uint32_t b) {
 
     // ---- exact product (needed for the MSB select and for the slow path) ----
     const CarrySave plain = fpMantissaProduct(mx, my, 0);
-    const uint64_t P = koggeStoneAdd(plain.s, plain.c, 48);
+    const uint64_t P = prefixAdd(plain.s, plain.c, false, 48).sum;
     const bool top = ((P >> 47) & 1u) != 0;
 
     // ---- slow path: the result may be subnormal or overflow ----
@@ -500,8 +471,8 @@ uint32_t ALU::fmul(uint32_t a, uint32_t b) {
     // ---- fast path: rounding merged into the final addition ----
     const CarrySave cX = fpMantissaProduct(mx, my, 1ull << 23);      // P + half ulp when P >= 2^47
     const CarrySave cY = fpMantissaProduct(mx, my, 1ull << 22);      // P + half ulp when P <  2^47
-    const uint64_t tX = koggeStoneAdd(cX.s, cX.c, 48);
-    const uint64_t tY = koggeStoneAdd(cY.s, cY.c, 48);
+    const uint64_t tX = prefixAdd(cX.s, cX.c, false, 48).sum;
+    const uint64_t tY = prefixAdd(cY.s, cY.c, false, 48).sum;
 
     uint32_t m;
     int e;
@@ -611,28 +582,28 @@ uint32_t ALU::fdiv(uint32_t a, uint32_t b) {
     const uint32_t K = fpRecipSeed(my);                              // 22 fractional bits
     const CarrySave cn = fpMantissaProduct(mx, K, 0);
     const CarrySave cd = fpMantissaProduct(my, K, 0);
-    const uint64_t Pn = koggeStoneAdd(cn.s, cn.c, 48);               // x*K with 45 fractional bits
-    const uint64_t Pd = koggeStoneAdd(cd.s, cd.c, 48);               // y*K, close to 1.0
+    const uint64_t Pn = prefixAdd(cn.s, cn.c, false, 48).sum;        // x*K with 45 fractional bits
+    const uint64_t Pd = prefixAdd(cd.s, cd.c, false, 48).sum;        // y*K, close to 1.0
 
     // ---- 2. one iteration: N1 = N0 * (2 - D0) = N0 + N0*eps, eps = 1 - D0 ----
-    uint64_t E = koggeStoneAdd(1ull << 45, (~Pd) & M48, 48, true);   // 2^45 - Pd: eps, signed 48-bit
+    uint64_t E = prefixAdd(1ull << 45, (~Pd) & M48, true, 48).sum;   // 2^45 - Pd: eps, signed 48-bit
     const bool epsNeg = ((E >> 47) & 1u) != 0;
-    if (epsNeg) E = koggeStoneAdd((~E) & M48, 0, 48, true);          // |eps|
+    if (epsNeg) E = prefixAdd((~E) & M48, 0, true, 48).sum;          // |eps|
     const uint32_t epsMag = static_cast<uint32_t>(E >> 15);          // 30 fractional bits, below 2^18
     const uint32_t N0 = static_cast<uint32_t>(Pn >> 15);             // 30 fractional bits
     const CarrySave cm = fpMantissaProduct(N0, epsMag, 0);
-    const uint64_t corr = koggeStoneAdd(cm.s, cm.c, 48) >> 30;       // N0*|eps|, 30 fractional bits
-    const uint64_t N1 = epsNeg ? koggeStoneAdd(N0, (~corr) & M48, 48, true)    // N0 - corr
-                               : koggeStoneAdd(N0, corr, 48);                  // N0 + corr
+    const uint64_t corr = prefixAdd(cm.s, cm.c, false, 48).sum >> 30; // N0*|eps|, 30 fractional bits
+    const uint64_t N1 = epsNeg ? prefixAdd(N0, (~corr) & M48, true, 48).sum    // N0 - corr
+                               : prefixAdd(N0, corr, false, 48).sum;           // N0 + corr
 
     // ---- 3. quotient estimate and exact remainder ----
     const uint32_t Qt = static_cast<uint32_t>(N1 >> (30 - s));       // ~ q * 2^s, within one unit of the floor
     const CarrySave cz = fpMantissaProduct(Qt, my, 0);
-    const uint64_t Z   = koggeStoneAdd(cz.s, cz.c, 48);              // Qt*my  (mod 2^48)
+    const uint64_t Z   = prefixAdd(cz.s, cz.c, false, 48).sum;       // Qt*my  (mod 2^48)
     const uint64_t mxs = (static_cast<uint64_t>(mx) << s) & M48;
-    const uint64_t R0  = koggeStoneAdd(mxs, (~Z) & M48, 48, true);   // mx*2^s - Qt*my: small and signed
-    const uint64_t Rp  = koggeStoneAdd(R0, my, 48);                  // R0 + my
-    const uint64_t Rm  = koggeStoneAdd(R0, (~static_cast<uint64_t>(my)) & M48, 48, true);   // R0 - my
+    const uint64_t R0  = prefixAdd(mxs, (~Z) & M48, true, 48).sum;   // mx*2^s - Qt*my: small and signed
+    const uint64_t Rp  = prefixAdd(R0, my, false, 48).sum;           // R0 + my
+    const uint64_t Rm  = prefixAdd(R0, (~static_cast<uint64_t>(my)) & M48, true, 48).sum;   // R0 - my
     int adj;
     uint64_t R1;
     if ((R0 >> 47) & 1u)         { adj = -1; R1 = Rp; }              // estimate too big

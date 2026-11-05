@@ -81,7 +81,6 @@ private:
         uint64_t s, c;         // 48-bit product = s + c (mod 2^48), not yet carry-propagated
     };
     static CarrySave fpMantissaProduct(uint32_t a, uint32_t b, uint64_t inject);   // Booth radix-4 + 4:2 tree
-    static uint64_t  koggeStoneAdd(uint64_t a, uint64_t b, int width, bool cin = false);   // carry-propagate adder
 
     // Reciprocal seed behind fdiv (see the comment block in alu.cpp): for a 24-bit divisor mantissa
     // my (value y = my / 2^23, in [1,2)) returns K ~ 1/y as an integer with 22 fractional bits.
