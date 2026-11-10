@@ -267,24 +267,24 @@ private:
     }
 
     // run: to the end, silently
-    void cmd_run()
-    {
-        if (!unit.active())
-        {
-            not_running();
-            return;
-        }
-        while (unit.stepMicro()) {}
-        print_finish();
-    }
+    // void cmd_run()
+    // {
+    //     if (!unit.active())
+    //     {
+    //         not_running();
+    //         return;
+    //     }
+    //     while (unit.stepMicro()) {}
+    //     print_finish();
+    // }
 
-    void cmd_restart()
-    {
-        unit.begin(machine);
-        current = -1;
-        info("restarted - micro-PC at " + target_text(unit.microPc()));
-        cmd_state();
-    }
+    // void cmd_restart()
+    // {
+    //     unit.begin(machine);
+    //     current = -1;
+    //     info("restarted - micro-PC at " + target_text(unit.microPc()));
+    //     cmd_state();
+    // }
 
     void cmd_state()
     {
@@ -328,55 +328,55 @@ private:
             cout << "\n";
     }
 
-    void cmd_registers()
-    {
-        for (size_t i = 0; i < machine.Reg.size(); i++)
-        {
-            cout << (machine.Reg[i] != 0 ? BOLD : DIM) << left << setw(6) << reg_name((int)i) << "= " << right << setw(11) << machine.Reg[i] << RESET;
-            cout << (i % 4 == 3 ? "\n" : "   ");
-        }
-        cout << "pc = " << machine.pc << "    flags: Z=" << machine.zero << " N=" << machine.neg << " O=" << machine.over << " C=" << machine.carry << "\n";
-    }
+    // void cmd_registers()
+    // {
+    //     for (size_t i = 0; i < machine.Reg.size(); i++)
+    //     {
+    //         cout << (machine.Reg[i] != 0 ? BOLD : DIM) << left << setw(6) << reg_name((int)i) << "= " << right << setw(11) << machine.Reg[i] << RESET;
+    //         cout << (i % 4 == 3 ? "\n" : "   ");
+    //     }
+    //     cout << "pc = " << machine.pc << "    flags: Z=" << machine.zero << " N=" << machine.neg << " O=" << machine.over << " C=" << machine.carry << "\n";
+    // }
 
-    void cmd_memory()
-    {
-        int used = 0;
-        for (size_t i = 0; i < machine.memory.size(); i++)
-            if (machine.memory[i] != 0)
-            {
-                cout << "mem[" << i << "] = " << machine.memory[i] << "\n";
-                used++;
-            }
-        if (used == 0)
-            cout << DIM << "no memory location holds data" << RESET << "\n";
-        else
-            cout << DIM << used << " of " << machine.memory.size() << " locations in use" << RESET << "\n";
-    }
+    // void cmd_memory()
+    // {
+    //     int used = 0;
+    //     for (size_t i = 0; i < machine.memory.size(); i++)
+    //         if (machine.memory[i] != 0)
+    //         {
+    //             cout << "mem[" << i << "] = " << machine.memory[i] << "\n";
+    //             used++;
+    //         }
+    //     if (used == 0)
+    //         cout << DIM << "no memory location holds data" << RESET << "\n";
+    //     else
+    //         cout << DIM << used << " of " << machine.memory.size() << " locations in use" << RESET << "\n";
+    // }
 
-    void cmd_stack()
-    {
-        StackMemoryVisualizer visualizer(machine);
-        visualizer.render(std::cout, 16);
-    }
+    // void cmd_stack()
+    // {
+    //     StackMemoryVisualizer visualizer(machine);
+    //     visualizer.render(std::cout, 16);
+    // }
 
     // The control store; the micro-PC is marked with "=>".
-    void cmd_listing()
-    {
-        istringstream in(unit.listing());
-        string line;
-        bool header = true;
-        while (getline(in, line))
-        {
-            if (header)
-            {
-                cout << BOLD << line << RESET << "\n";
-                header = false;
-                continue;
-            }
-            const bool here = unit.active() && line.compare(0, 4, addr4(unit.microPc())) == 0;
-            cout << (here ? YELLOW + string("=> ") + BOLD : string("   ")) << line << (here ? RESET : "") << "\n";
-        }
-    }
+    // void cmd_listing()
+    // {
+    //     istringstream in(unit.listing());
+    //     string line;
+    //     bool header = true;
+    //     while (getline(in, line))
+    //     {
+    //         if (header)
+    //         {
+    //             cout << BOLD << line << RESET << "\n";
+    //             header = false;
+    //             continue;
+    //         }
+    //         const bool here = unit.active() && line.compare(0, 4, addr4(unit.microPc())) == 0;
+    //         cout << (here ? YELLOW + string("=> ") + BOLD : string("   ")) << line << (here ? RESET : "") << "\n";
+    //     }
+    // }
 
     void cmd_words()
     {
@@ -389,14 +389,14 @@ private:
         cout << BOLD << "Micro debug commands (" << unit.name() << " control unit)" << RESET << "\n";
         cout << "  " << CYAN << "ustep [n]" << RESET << "     execute n micro-instructions (default 1) and show the micro-PC for each\n";
         cout << "  " << CYAN << "step [n]" << RESET << "      execute n whole instructions (all their micro-instructions)\n";
-        cout << "  " << CYAN << "run" << RESET << "           run to the end of the program\n";
-        cout << "  " << CYAN << "restart" << RESET << "       reset the machine, micro-PC back to the start\n";
+        // cout << "  " << CYAN << "run" << RESET << "           run to the end of the program\n";
+        // cout << "  " << CYAN << "restart" << RESET << "       reset the machine, micro-PC back to the start\n";
         cout << "  " << CYAN << "state" << RESET << "         micro-PC, next micro-instruction, current instruction, counters\n";
         cout << "  " << CYAN << "uregs" << RESET << "         show the micro-registers\n";
-        cout << "  " << CYAN << "registers" << RESET << "     show all registers and flags\n";
-        cout << "  " << CYAN << "memory" << RESET << "        show every memory location that holds data (non-zero)\n";
-        cout << "  " << CYAN << "stack" << RESET << "         display stack memory frame\n";
-        cout << "  " << CYAN << "listing" << RESET << "       control-memory listing, the micro-PC is marked\n";
+        // cout << "  " << CYAN << "registers" << RESET << "     show all registers and flags\n";
+        // cout << "  " << CYAN << "memory" << RESET << "        show every memory location that holds data (non-zero)\n";
+        // cout << "  " << CYAN << "stack" << RESET << "         display stack memory frame\n";
+        // cout << "  " << CYAN << "listing" << RESET << "       control-memory listing, the micro-PC is marked\n";
         cout << "  " << CYAN << "words" << RESET << "         show / hide the encoded control word of every micro-instruction\n";
         cout << "  " << CYAN << "clear" << RESET << "         clear the terminal\n";
         cout << "  " << CYAN << "help" << RESET << "          show this list\n";
@@ -491,22 +491,22 @@ public:
                     if (parse_count(arg, n))
                         cmd_step(n);
                 }
-                else if (cmd == "run")
-                    cmd_run();
-                else if (cmd == "restart")
-                    cmd_restart();
+                // else if (cmd == "run")
+                //     cmd_run();
+                // else if (cmd == "restart")
+                //     cmd_restart();
                 else if (cmd == "state")
                     cmd_state();
                 else if (cmd == "uregs")
                     cmd_uregs();
-                else if (cmd == "registers")
-                    cmd_registers();
-                else if (cmd == "memory")
-                    cmd_memory();
-                else if (cmd == "stack")
-                    cmd_stack();
-                else if (cmd == "listing")
-                    cmd_listing();
+                // else if (cmd == "registers")
+                //     cmd_registers();
+                // else if (cmd == "memory")
+                //     cmd_memory();
+                // else if (cmd == "stack")
+                //     cmd_stack();
+                // else if (cmd == "listing")
+                //     cmd_listing();
                 else if (cmd == "words")
                     cmd_words();
                 else if (cmd == "clear")

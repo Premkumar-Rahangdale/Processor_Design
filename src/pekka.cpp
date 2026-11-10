@@ -191,7 +191,7 @@ private:
         cout << "  " << CYAN << "debug" << RESET << "         enter debug mode (steps the pipeline)\n";
         cout << "  " << CYAN << "microdebug" << RESET << "    step the micro control unit one micro-instruction at a time and watch the micro-PC\n"
              << "                (horizontal or vertical control only)\n";
-        cout << "  " << CYAN << "microcode" << RESET << "     list the control memory of the configured micro control unit\n";
+        // cout << "  " << CYAN << "microcode" << RESET << "     list the control memory of the configured micro control unit\n";
         cout << "  " << CYAN << "execute" << RESET << "       run the whole program on the configured pipeline and show the statistics\n";
         cout << "  " << CYAN << "config" << RESET << "        show the processor configuration\n";
         cout << "  " << CYAN << "clear" << RESET << "         clear the terminal\n";
@@ -374,18 +374,18 @@ private:
     }
 
     // Control-memory listing of the configured micro control unit.
-    void cmd_microcode()
-    {
-        if (!need_started())
-            return;
-        MicroControlUnit *unit = micro_unit();
-        if (!unit)
-        {
-            fail("hardwired control has no control memory - start the processor with 'horizontal' or 'vertical' control");
-            return;
-        }
-        cout << unit->listing();
-    }
+    // void cmd_microcode()
+    // {
+    //     if (!need_started())
+    //         return;
+    //     MicroControlUnit *unit = micro_unit();
+    //     if (!unit)
+    //     {
+    //         fail("hardwired control has no control memory - start the processor with 'horizontal' or 'vertical' control");
+    //         return;
+    //     }
+    //     cout << unit->listing();
+    // }
 
     void cmd_execute()
     {
@@ -518,8 +518,8 @@ public:
                 cmd_debug();
             else if (cmd == "microdebug")
                 cmd_microdebug();
-            else if (cmd == "microcode")
-                cmd_microcode();
+            // else if (cmd == "microcode")
+            //     cmd_microcode();
             else if (cmd == "execute")
                 cmd_execute();
             else if (cmd == "config")
