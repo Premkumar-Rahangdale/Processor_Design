@@ -1,10 +1,19 @@
+// recursive function for factorial of 7
+.func:
+cmp r6 0
+bgt .label
+st r7 0[r8]
+ret
+.label:
+mul r7 r7 r6
+sub r6 r6 1
+call .func
+ret
+
 .main:
-mov r1 5        
-mov r2 1        
-mov r3 1        
-.loop:
-mul r2 r2 r3    
-add r3 r3 1     
-cmp r3 r1       
-beq .loop 
-st r2 0[r0]
+mov r6 7
+mov r7 1
+call .func
+nop
+// 7! is stored in memory
+

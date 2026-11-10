@@ -1,11 +1,16 @@
-.main:
-mov r1 1
-mov r2 0
-mov r3 10
-.loop:
-add r2 r2 r1    
-add r1 r1 1     
-cmp r1 r3       
-bsm .loop 
-st r2 0[r0] 
+//function adds numbers from 1 to 10
 
+.main:
+mov r6 0
+mov        r7 1
+mov r8 11
+.loop:
+add r6 r6 r7
+add r7  r7 1
+cmp r7 r8
+
+
+bsm .loop
+st r6 0[r9]
+nop
+// answer is stored in memory

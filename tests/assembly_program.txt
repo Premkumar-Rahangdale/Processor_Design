@@ -1,18 +1,19 @@
-// this is a function for finding sum of numbers from 1 to 9
+// recursive function for factorial of 7
+.func:
+cmp r6 0
+bgt .label
+st r7 0[r8]
+ret
+.label:
+mul r7 r7 r6
+sub r6 r6 1
+call .func
+ret
 
 .main:
-mov r6 1
-mov r5 0
-mov r3 10
-.loop:
-add r5  r5      r6    
-add r6 r6 1     
-
-cmp r6 r3       // breaks when it reaches the value of 10
-bsm .loop 
-st r5 0[r0]
+mov r6 7
+mov r7 1
 call .func
-//thanks
-.func:
-add r7 r7 100
-ret
+nop
+// 7! is stored in memory
+

@@ -278,13 +278,13 @@ private:
     //     print_finish();
     // }
 
-    // void cmd_restart()
-    // {
-    //     unit.begin(machine);
-    //     current = -1;
-    //     info("restarted - micro-PC at " + target_text(unit.microPc()));
-    //     cmd_state();
-    // }
+    void cmd_restart()
+    {
+        unit.begin(machine);
+        current = -1;
+        info("restarted - micro-PC at " + target_text(unit.microPc()));
+        cmd_state();
+    }
 
     void cmd_state()
     {
@@ -390,7 +390,7 @@ private:
         cout << "  " << CYAN << "ustep [n]" << RESET << "     execute n micro-instructions (default 1) and show the micro-PC for each\n";
         cout << "  " << CYAN << "step [n]" << RESET << "      execute n whole instructions (all their micro-instructions)\n";
         // cout << "  " << CYAN << "run" << RESET << "           run to the end of the program\n";
-        // cout << "  " << CYAN << "restart" << RESET << "       reset the machine, micro-PC back to the start\n";
+        cout << "  " << CYAN << "restart" << RESET << "       reset the machine, micro-PC back to the start\n";
         cout << "  " << CYAN << "state" << RESET << "         micro-PC, next micro-instruction, current instruction, counters\n";
         cout << "  " << CYAN << "uregs" << RESET << "         show the micro-registers\n";
         // cout << "  " << CYAN << "registers" << RESET << "     show all registers and flags\n";
@@ -493,8 +493,8 @@ public:
                 }
                 // else if (cmd == "run")
                 //     cmd_run();
-                // else if (cmd == "restart")
-                //     cmd_restart();
+                else if (cmd == "restart")
+                    cmd_restart();
                 else if (cmd == "state")
                     cmd_state();
                 else if (cmd == "uregs")
